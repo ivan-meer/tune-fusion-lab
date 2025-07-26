@@ -31,9 +31,71 @@ export function useMusicGeneration() {
   const [currentJob, setCurrentJob] = useState<GenerationJob | null>(null);
   const { toast } = useToast();
 
+  // Poll for job status updates
+  const pollJobStatus = useCallback(async (jobId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('generation_jobs')
+        .select(`
+          *,
+          tracks (
+            id,
+            title,
+            file_url,
+            artwork_url,
+            duration,
+            created_at
+          )
+        `)
+        .eq('id', jobId)
+        .single();
+
+      if (error) {
+        console.error('Error polling job status:', error);
+        return;
+      }
+
+      if (data) {
+        const job: GenerationJob = {
+          id: data.id,
+          status: data.status as any,
+          progress: data.progress,
+          track: data.tracks ? {
+            id: data.tracks.id,
+            title: data.tracks.title,
+            file_url: data.tracks.file_url,
+            artwork_url: data.tracks.artwork_url,
+            duration: data.tracks.duration,
+            created_at: data.tracks.created_at
+          } : undefined
+        };
+
+        setCurrentJob(job);
+
+        if (job.status === 'completed') {
+          setIsGenerating(false);
+          toast({
+            title: "Генерация завершена!",
+            description: job.track ? `Трек "${job.track.title}" готов к прослушиванию` : "Трек готов к прослушиванию"
+          });
+        } else if (job.status === 'failed') {
+          setIsGenerating(false);
+          toast({
+            title: "Ошибка генерации",
+            description: data.error_message || "Произошла ошибка при генерации",
+            variant: "destructive"
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error in pollJobStatus:', error);
+    }
+  }, [toast]);
+
   const generateMusic = useCallback(async (request: GenerationRequest) => {
     try {
       setIsGenerating(true);
+      setCurrentJob(null);
       
       // Check if user is authenticated
       const { data: { session } } = await supabase.auth.getSession();
@@ -56,67 +118,34 @@ export function useMusicGeneration() {
         throw new Error(data?.error || 'Music generation failed');
       }
 
-      // Check if generation was successful and set the job state
-      if (data.job) {
-        console.log('Generation completed, job status:', data.job.status);
-        
-        if (data.job.status === 'completed' && data.job.tracks) {
-          const track = Array.isArray(data.job.tracks) ? data.job.tracks[0] : data.job.tracks;
-          
-          setCurrentJob({
-            id: data.job.id,
-            status: 'completed',
-            progress: 100,
-            track: {
-              id: track.id,
-              title: track.title,
-              file_url: track.file_url,
-              artwork_url: track.artwork_url,
-              duration: track.duration,
-              created_at: track.created_at
-            }
-          });
-          
-          toast({
-            title: "Генерация завершена!",
-            description: `Трек "${track.title}" готов к прослушиванию`
-          });
-        } else if (data.job.status === 'completed') {
-          setCurrentJob({
-            id: data.job.id,
-            status: 'completed',
-            progress: 100
-          });
-          
-          toast({
-            title: "Генерация завершена!",
-            description: "Трек готов к прослушиванию"
-          });
-        } else if (data.job.status === 'failed') {
-          setCurrentJob({
-            id: data.job.id,
-            status: 'failed',
-            progress: 0
-          });
-          
-          toast({
-            title: "Ошибка генерации",
-            description: data.job.error_message || "Произошла ошибка при генерации",
-            variant: "destructive"
-          });
-        }
-      } else {
-        toast({
-          title: "Генерация завершена!",
-          description: "Трек готов к прослушиванию"
-        });
-      }
+      // Set initial job state
+      setCurrentJob({
+        id: data.jobId,
+        status: 'pending',
+        progress: 0
+      });
+
+      toast({
+        title: "Генерация начата",
+        description: "Трек находится в процессе генерации..."
+      });
+
+      // Start polling for updates
+      const pollInterval = setInterval(async () => {
+        await pollJobStatus(data.jobId);
+      }, 3000); // Poll every 3 seconds
+
+      // Stop polling after 5 minutes
+      setTimeout(() => {
+        clearInterval(pollInterval);
+        setIsGenerating(false);
+      }, 300000);
       
-      setIsGenerating(false);
       return data;
       
     } catch (error) {
       setIsGenerating(false);
+      setCurrentJob(null);
       const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
       
       toast({
@@ -127,7 +156,7 @@ export function useMusicGeneration() {
       
       throw error;
     }
-  }, [toast, isGenerating]);
+  }, [toast, pollJobStatus]);
 
   const resetGeneration = useCallback(() => {
     setCurrentJob(null);

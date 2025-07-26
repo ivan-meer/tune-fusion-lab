@@ -257,11 +257,11 @@ async function generateWithSuno(request: GenerationRequest) {
 
   // Use correct Suno API request format according to documentation
   const generateRequest = {
-    prompt: request.lyrics ? `${request.prompt}. Lyrics: ${request.lyrics}` : request.prompt,
+    prompt: request.instrumental ? request.prompt : request.lyrics || request.prompt, // Use lyrics as prompt if provided and not instrumental
     customMode: true, // Required parameter according to API docs
-    model: "V3_5", // Correct model format: V3_5, V4, V4_5 or V4_5PLUS
-    instrumental: request.instrumental || false, // Use 'instrumental' instead of 'make_instrumental'
-    tags: request.style,
+    model: "V4_5", // Updated to V4_5 for better quality
+    make_instrumental: request.instrumental || false, // Correct parameter name
+    tags: request.style || "pop", // Style becomes tags
     title: request.prompt.slice(0, 80),
     wait_audio: false,
     callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
