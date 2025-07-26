@@ -1,6 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,6 +15,35 @@ interface GenerationRequest {
   duration?: number;
   instrumental?: boolean;
   lyrics?: string;
+}
+
+interface SunoLyricsResponse {
+  success: boolean;
+  code?: number;
+  data?: {
+    taskId: string;
+    lyricsData?: Array<{
+      text: string;
+      title: string;
+      status: string;
+    }>;
+  };
+  error?: string;
+}
+
+interface SunoGenerationResponse {
+  success: boolean;
+  code?: number;
+  data?: {
+    taskId?: string;
+    task_id?: string;
+    id?: string;
+  } | Array<{
+    taskId?: string;
+    task_id?: string;
+    id?: string;
+  }>;
+  error?: string;
 }
 
 serve(async (req) => {
@@ -75,7 +104,7 @@ serve(async (req) => {
       .insert({
         user_id: user.id,
         provider,
-        model: model || (provider === 'test' ? 'test' : 'chirp-v4'),
+        model: model || getDefaultModel(provider),
         status: 'pending',
         progress: 0,
         request_params: {
@@ -86,7 +115,7 @@ serve(async (req) => {
           lyrics,
           model
         },
-        credits_used: provider === 'suno' ? 10 : provider === 'mureka' ? 15 : 0
+        credits_used: calculateCredits(provider, duration)
       })
       .select()
       .single();
@@ -98,11 +127,13 @@ serve(async (req) => {
 
     console.log(`Created generation job: ${jobData.id}`);
 
-    // Start background processing without waiting  
-    processGeneration(jobData.id, provider, model || (provider === 'test' ? 'test' : 'chirp-v4'), prompt, style, duration, instrumental, lyrics, supabaseAdmin)
-      .catch(error => {
-        console.error(`Background processing failed for job ${jobData.id}:`, error);
-      });
+    // Start background processing using EdgeRuntime.waitUntil for proper handling
+    EdgeRuntime.waitUntil(
+      processGeneration(jobData.id, provider, model || getDefaultModel(provider), prompt, style, duration, instrumental, lyrics, supabaseAdmin)
+        .catch(error => {
+          console.error(`Background processing failed for job ${jobData.id}:`, error);
+        })
+    );
     
     // Return immediate response
     return new Response(
@@ -133,10 +164,28 @@ serve(async (req) => {
   }
 });
 
+function getDefaultModel(provider: string): string {
+  switch (provider) {
+    case 'suno': return 'chirp-v4-5';
+    case 'mureka': return 'mureka-v6';
+    case 'test': return 'test';
+    default: return 'chirp-v4-5';
+  }
+}
+
+function calculateCredits(provider: string, duration: number): number {
+  switch (provider) {
+    case 'suno': return Math.ceil(duration / 30) * 5; // 5 credits per 30 seconds
+    case 'mureka': return Math.ceil(duration / 30) * 8; // 8 credits per 30 seconds
+    case 'test': return 0;
+    default: return 5;
+  }
+}
+
 async function processGeneration(
   jobId: string,
   provider: string,
-  model: string | undefined,
+  model: string,
   prompt: string,
   style: string,
   duration: number,
@@ -160,7 +209,7 @@ async function processGeneration(
     console.log('Starting generation with provider:', provider, 'model:', model);
     
     if (provider === 'suno') {
-      console.log('Calling generateWithSuno...');
+      console.log('Calling optimized generateWithSuno...');
       result = await generateWithSuno(
         jobId,
         prompt,
@@ -256,7 +305,7 @@ async function generateWithSuno(
   lyrics: string | undefined,
   supabaseAdmin: any
 ) {
-  console.log('=== Starting generateWithSuno ===');
+  console.log('=== Starting optimized generateWithSuno ===');
   console.log('Params:', { prompt, style, duration, instrumental, lyrics });
   
   const sunoApiKey = Deno.env.get('SUNO_API_KEY');
@@ -267,166 +316,236 @@ async function generateWithSuno(
     throw new Error('SUNO_API_KEY not configured');
   }
 
-  // For vocal tracks, generate lyrics from prompt if not provided
+  // For vocal tracks, use Suno's built-in lyric generation if lyrics not provided
   let finalLyrics = lyrics;
+  let lyricsTaskId = null;
+  
   if (!instrumental && !lyrics) {
-    console.log('Generating lyrics from prompt...');
+    console.log('Using Suno built-in lyric generation...');
     
     // Update progress
     await supabaseAdmin
       .from('generation_jobs')
-      .update({ status: 'processing', progress: 30 })
+      .update({ status: 'processing', progress: 20 })
       .eq('id', jobId);
     
-    finalLyrics = await generateLyricsFromPrompt(prompt, style);
-    console.log('Generated lyrics:', finalLyrics);
+    try {
+      const lyricsResult = await generateLyricsWithSuno(prompt, style);
+      finalLyrics = lyricsResult.lyrics;
+      lyricsTaskId = lyricsResult.taskId;
+      console.log('Generated lyrics with Suno:', finalLyrics);
+    } catch (lyricsError) {
+      console.warn('Suno lyrics generation failed, proceeding without:', lyricsError.message);
+      // Continue without lyrics for instrumental-like generation
+    }
   }
 
-  console.log('Generating with Suno AI...');
+  console.log('Generating music with Suno AI...');
 
-  // Use correct Suno API request format according to documentation
+  // Update progress
+  await supabaseAdmin
+    .from('generation_jobs')
+    .update({ status: 'processing', progress: 40 })
+    .eq('id', jobId);
+
+  // Optimized Suno API request with all best practices
   const generateRequest = {
-    prompt: prompt, // Always use prompt as style/performance description
-    customMode: !instrumental, // Use custom mode for vocal tracks with lyrics
-    model: "V4_5", // Updated to V4_5 for better quality
-    make_instrumental: instrumental || false,
-    tags: style || "pop", // Style becomes tags
+    customMode: !instrumental && !!finalLyrics, // Use custom mode only when we have lyrics
+    prompt: instrumental ? prompt : style, // For instrumental: full prompt, for vocal: style only
+    tags: generateTags(style, instrumental),
     title: prompt.slice(0, 80),
+    make_instrumental: instrumental,
+    model: "chirp-v4-5", // Latest and best model
     wait_audio: false,
     callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
   };
 
-  // Add lyrics only for vocal tracks
+  // Add lyrics and adjust prompt for vocal tracks
   if (!instrumental && finalLyrics) {
     generateRequest.lyrics = finalLyrics;
+    generateRequest.prompt = `${style} style performance`; // Style description for vocals
   }
   
-  console.log('Request payload:', JSON.stringify(generateRequest, null, 2));
+  console.log('Optimized request payload:', JSON.stringify(generateRequest, null, 2));
 
-  // Use the correct Suno API endpoint
-  const response = await fetch('https://api.sunoapi.org/api/v1/generate', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${sunoApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(generateRequest),
-  });
+  const result = await retryApiCall(async () => {
+    const response = await fetch('https://api.sunoapi.org/api/v1/generate', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${sunoApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(generateRequest),
+    });
+    
+    console.log('Suno API response status:', response.status, response.statusText);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Suno API error response:', errorText);
+      throw new Error(`Suno API error: ${response.status} ${response.statusText}. Response: ${errorText}`);
+    }
+
+    return await response.json();
+  }, 3, 2000);
   
-  console.log('Suno API response status:', response.status, response.statusText);
-  console.log('Suno API response headers:', Object.fromEntries(response.headers.entries()));
+  console.log('=== SUNO API RESPONSE ===');
+  console.log('Response data:', JSON.stringify(result, null, 2));
   
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Suno API error response status:', response.status);
-    console.error('Suno API error response body:', errorText);
-    throw new Error(`Suno API error: ${response.status} ${response.statusText}. Response: ${errorText}`);
+  // Extract task ID with improved logic
+  const taskId = extractTaskId(result);
+  if (!taskId) {
+    console.error('Failed to extract task ID from response:', result);
+    throw new Error(`No task ID found in Suno API response`);
   }
-
-  const data = await response.json();
-  console.log('=== SUNO API RESPONSE START ===');
-  console.log('Response status:', response.status);
-  console.log('Response data:', JSON.stringify(data, null, 2));
-  console.log('=== SUNO API RESPONSE END ===');
   
-  // Handle successful response with success flag
-  if (data.success === true || data.code === 200) {
-    console.log('Suno API returned success');
+  console.log('Successfully extracted task ID:', taskId);
+  
+  // Update progress
+  await supabaseAdmin
+    .from('generation_jobs')
+    .update({ status: 'processing', progress: 60 })
+    .eq('id', jobId);
+  
+  const generationResult = await pollSunoGeneration(taskId, supabaseAdmin, jobId);
+  
+  // Include generated lyrics in result
+  if (finalLyrics && !generationResult.lyrics) {
+    generationResult.lyrics = finalLyrics;
+  }
+  
+  return generationResult;
+}
+
+async function generateLyricsWithSuno(prompt: string, style: string): Promise<{lyrics: string, taskId: string}> {
+  const sunoApiKey = Deno.env.get('SUNO_API_KEY');
+  
+  console.log('Generating lyrics with Suno built-in API...');
+  
+  const lyricsRequest = {
+    prompt: `Create song lyrics for: ${prompt}`,
+    style: style,
+    language: "russian"
+  };
+  
+  const response = await retryApiCall(async () => {
+    const res = await fetch('https://api.sunoapi.org/api/v1/generate/lyric', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${sunoApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(lyricsRequest),
+    });
     
-    // Try multiple ways to extract task ID
-    let taskId = null;
-    if (data.data) {
-      taskId = data.data.task_id || data.data.id || data.data.taskId;
-      if (Array.isArray(data.data) && data.data.length > 0) {
-        taskId = data.data[0].task_id || data.data[0].id || data.data[0].taskId;
-      }
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Suno Lyrics API error: ${res.status} ${errorText}`);
     }
-    if (!taskId) {
-      taskId = data.task_id || data.id || data.taskId;
-    }
     
-    console.log('Extracted task ID:', taskId);
+    return await res.json();
+  }, 2, 1000);
+  
+  console.log('Suno lyrics response:', response);
+  
+  const taskId = extractTaskId(response);
+  if (!taskId) {
+    throw new Error('No task ID returned from Suno lyrics API');
+  }
+  
+  // Poll for lyrics completion
+  const lyricsResult = await pollSunoLyrics(taskId);
+  
+  return {
+    lyrics: lyricsResult,
+    taskId: taskId
+  };
+}
+
+async function pollSunoLyrics(taskId: string): Promise<string> {
+  const sunoApiKey = Deno.env.get('SUNO_API_KEY');
+  let attempts = 0;
+  const maxAttempts = 20; // Lyrics generation is usually faster
+  
+  while (attempts < maxAttempts) {
+    await new Promise(resolve => setTimeout(resolve, 3000));
     
-    if (!taskId) {
-      console.error('=== NO TASK ID FOUND ===');
-      console.error('Full response structure:');
-      console.error('Type of data:', typeof data);
-      console.error('Keys in data:', Object.keys(data));
-      if (data.data) {
-        console.error('Type of data.data:', typeof data.data);
-        if (Array.isArray(data.data)) {
-          console.error('data.data is array with length:', data.data.length);
-          if (data.data.length > 0) {
-            console.error('Keys in data.data[0]:', Object.keys(data.data[0]));
-          }
-        } else {
-          console.error('Keys in data.data:', Object.keys(data.data));
+    try {
+      const response = await fetch(`https://api.sunoapi.org/api/v1/lyrics/record-info?taskId=${taskId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${sunoApiKey}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`Lyrics poll attempt ${attempts + 1}:`, data);
+        
+        if (data.data?.response?.lyricsData?.[0]?.status === 'complete') {
+          return data.data.response.lyricsData[0].text;
+        }
+        
+        if (data.data?.response?.status === 'FAILED') {
+          throw new Error('Lyrics generation failed');
         }
       }
-      throw new Error(`No task ID found in Suno API response: ${JSON.stringify(data)}`);
+    } catch (error) {
+      console.warn(`Lyrics polling attempt ${attempts + 1} failed:`, error);
     }
     
-    console.log('Successfully extracted task ID:', taskId);
-    const result = await pollSunoGeneration(taskId);
-    
-    // Include generated lyrics in result
-    if (finalLyrics && !result.lyrics) {
-      result.lyrics = finalLyrics;
+    attempts++;
+  }
+  
+  throw new Error('Lyrics generation timed out');
+}
+
+function generateTags(style: string, instrumental: boolean): string {
+  const baseTags = style.toLowerCase();
+  const instrumentalTag = instrumental ? ', instrumental' : ', vocal';
+  const qualityTags = ', high quality, professional';
+  
+  return `${baseTags}${instrumentalTag}${qualityTags}`;
+}
+
+function extractTaskId(response: any): string | null {
+  // Multiple extraction strategies for different response formats
+  if (response.data) {
+    if (Array.isArray(response.data) && response.data.length > 0) {
+      return response.data[0].taskId || response.data[0].task_id || response.data[0].id;
+    } else if (typeof response.data === 'object') {
+      return response.data.taskId || response.data.task_id || response.data.id;
     }
-    
-    return result;
-    
-  } else {
-    console.error('Suno API returned error:', data);
-    throw new Error(`Suno API error: ${data.error || data.message || data.msg || 'Unknown error'}`);
   }
+  
+  return response.taskId || response.task_id || response.id || null;
 }
 
-async function generateLyricsFromPrompt(prompt: string, style: string): Promise<string> {
-  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-  if (!openaiApiKey) {
-    throw new Error('OPENAI_API_KEY not configured');
-  }
-
-  console.log('Generating lyrics with OpenAI...');
+async function retryApiCall<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  delayMs: number = 1000
+): Promise<T> {
+  let lastError: Error;
   
-  const systemPrompt = `Ты профессиональный автор песен. Создай текст песни на русском языке на основе описания пользователя. 
-Структура должна включать куплеты, припевы и при необходимости бридж. 
-Используй стандартные теги: [Verse], [Chorus], [Bridge], [Outro].
-Стиль: ${style}
-Создай эмоциональный и запоминающийся текст.`;
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${openaiApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Создай текст песни по описанию: ${prompt}` }
-      ],
-      max_tokens: 1000,
-      temperature: 0.8
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenAI API error: ${response.status} ${errorText}`);
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      console.warn(`API call attempt ${attempt} failed:`, error.message);
+      
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, delayMs * attempt));
+      }
+    }
   }
-
-  const data = await response.json();
-  const generatedLyrics = data.choices[0].message.content;
   
-  console.log('Generated lyrics from OpenAI:', generatedLyrics);
-  return generatedLyrics;
+  throw lastError!;
 }
 
-async function pollSunoGeneration(taskId: string) {
-  console.log('Starting to poll for generation status with taskId:', taskId);
+async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: string) {
+  console.log('Starting enhanced polling for generation status with taskId:', taskId);
   
   const sunoApiKey = Deno.env.get('SUNO_API_KEY');
   if (!sunoApiKey) {
@@ -435,42 +554,58 @@ async function pollSunoGeneration(taskId: string) {
 
   let generationResult = null;
   let attempts = 0;
-  const maxAttempts = 60;
+  const maxAttempts = 60; // 5 minutes maximum
+  const pollInterval = 5000; // 5 seconds
 
   while (attempts < maxAttempts) {
-    await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds between polls
+    await new Promise(resolve => setTimeout(resolve, pollInterval));
     
-    const statusResponse = await fetch(`https://api.sunoapi.org/api/v1/get?ids=${taskId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${sunoApiKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    try {
+      const statusResponse = await fetch(`https://api.sunoapi.org/api/v1/get?ids=${taskId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${sunoApiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-    if (statusResponse.ok) {
-      const statusData = await statusResponse.json();
-      console.log(`Poll attempt ${attempts + 1}:`, JSON.stringify(statusData, null, 2));
-      
-      if (statusData.success && statusData.data && statusData.data.length > 0) {
-        const track = statusData.data[0];
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json();
+        console.log(`Poll attempt ${attempts + 1}:`, JSON.stringify(statusData, null, 2));
         
-        if (track.status === 'completed' && track.audio_url) {
-          generationResult = track;
-          break;
-        }
+        // Update job progress based on polling
+        const progressPercent = 60 + Math.min(20, (attempts / maxAttempts) * 20);
+        await supabaseAdmin
+          .from('generation_jobs')
+          .update({ progress: Math.round(progressPercent) })
+          .eq('id', jobId);
         
-        if (track.status === 'failed') {
-          throw new Error(`Suno generation failed: ${track.error_message || 'Unknown error'}`);
+        if (statusData.success && statusData.data && statusData.data.length > 0) {
+          const track = statusData.data[0];
+          
+          if (track.status === 'completed' && track.audio_url) {
+            generationResult = track;
+            break;
+          }
+          
+          if (track.status === 'failed') {
+            throw new Error(`Suno generation failed: ${track.error_message || 'Unknown error'}`);
+          }
+          
+          console.log(`Track status: ${track.status}, continuing to poll...`);
         }
+      } else {
+        console.warn(`Status check failed: ${statusResponse.status}`);
       }
+    } catch (error) {
+      console.warn(`Polling attempt ${attempts + 1} failed:`, error.message);
     }
     
     attempts++;
   }
 
   if (!generationResult) {
-    throw new Error('Suno generation timed out');
+    throw new Error('Suno generation timed out after 5 minutes');
   }
 
   if (!generationResult.audio_url) {
@@ -577,8 +712,8 @@ async function generateWithTest(
   return {
     id: trackId,
     title: `Test: ${shortPrompt}${shortPrompt.length < prompt.length ? '...' : ''}`,
-    audioUrl: 'https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3', // Working test audio
-    imageUrl: `https://picsum.photos/300/300?random=${trackId}`, // Random placeholder image
+    audioUrl: 'https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3',
+    imageUrl: `https://picsum.photos/300/300?random=${trackId}`,
     duration: duration,
     lyrics: instrumental ? undefined : (lyrics || `Test lyrics for "${shortPrompt}":\n\nVerse 1:\nThis is a test track generated\nFor your music AI application\nThe melody flows like dreams\nIn digital realms\n\nChorus:\nTest track, test track\nPlaying back\nAll systems working\nNothing lacking`)
   };
