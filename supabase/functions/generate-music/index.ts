@@ -130,48 +130,36 @@ serve(async (req) => {
 
     console.log(`Created generation job: ${jobData.id}`);
 
-    // Process generation synchronously like the successful 14:54 call
-    try {
-      await processGeneration(jobData.id, provider, model || getDefaultModel(provider), prompt, style, duration, isInstrumental, lyrics, supabaseAdmin);
-      
-      // Return success response
-      return new Response(
-        JSON.stringify({
-          success: true,
-          jobId: jobData.id,
-          message: 'Generation completed successfully',
-          status: 'completed'
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    } catch (generationError) {
-      console.error(`Generation failed for job ${jobData.id}:`, generationError);
-      
-      // Update job to failed status
-      await supabaseAdmin
-        .from('generation_jobs')
-        .update({
-          status: 'failed',
-          progress: 0,
-          error_message: generationError.message
+    // Process generation asynchronously in background to avoid blocking
+    EdgeRuntime.waitUntil(
+      processGeneration(jobData.id, provider, model || getDefaultModel(provider), prompt, style, duration, isInstrumental, lyrics, supabaseAdmin)
+        .catch(async (generationError) => {
+          console.error(`Background generation failed for job ${jobData.id}:`, generationError);
+          
+          // Update job to failed status
+          await supabaseAdmin
+            .from('generation_jobs')
+            .update({
+              status: 'failed',
+              progress: 0,
+              error_message: generationError.message
+            })
+            .eq('id', jobData.id);
         })
-        .eq('id', jobData.id);
-      
-      // Return proper error response instead of throwing
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: generationError.message || 'Generation failed',
-          jobId: jobData.id
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
+    );
+    
+    // Return immediate success response
+    return new Response(
+      JSON.stringify({
+        success: true,
+        jobId: jobData.id,
+        message: 'Generation started successfully',
+        status: 'processing'
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
 
   } catch (error) {
     console.error('Error in generate-music function:', error);
