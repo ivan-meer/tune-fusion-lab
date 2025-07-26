@@ -333,8 +333,15 @@ async function generateWithSuno(request: GenerationRequest) {
     throw new Error(`Suno API error: Invalid response structure - ${JSON.stringify(data)}`);
   }
 
-  const taskId = data.data?.task_id || data.data?.id;
+  const taskId = data.data?.task_id || data.data?.id || data.task_id || data.id;
+  console.log('Extracted task ID:', taskId);
+  console.log('Available data keys:', Object.keys(data));
+  if (data.data) {
+    console.log('Available data.data keys:', Object.keys(data.data));
+  }
+  
   if (!taskId) {
+    console.error('No task ID found in response. Full response:', JSON.stringify(data, null, 2));
     throw new Error('No task ID received from Suno API');
   }
   
