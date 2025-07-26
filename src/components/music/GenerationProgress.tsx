@@ -3,8 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, XCircle, Clock, Music, RefreshCw } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, Music, RefreshCw, Play } from 'lucide-react';
 import { GenerationJob } from '@/hooks/useMusicGeneration';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 
 interface GenerationProgressProps {
   job: GenerationJob;
@@ -45,6 +46,7 @@ const statusConfig = {
 
 export default function GenerationProgress({ job, onReset, onRetry }: GenerationProgressProps) {
   const [animateProgress, setAnimateProgress] = useState(false);
+  const [playerState, playerActions] = useAudioPlayer();
   const config = statusConfig[job.status];
   const Icon = config.icon;
 
@@ -131,8 +133,18 @@ export default function GenerationProgress({ job, onReset, onRetry }: Generation
 
         {/* Action Buttons */}
         <div className="flex gap-2 pt-2">
+          {job.status === 'completed' && job.track && (
+            <Button 
+              onClick={() => playerActions.playTrack(job.track)} 
+              variant="default" 
+              className="flex-1"
+            >
+              <Play className="h-4 w-4 mr-2" />
+              Прослушать трек
+            </Button>
+          )}
           {job.status === 'completed' && (
-            <Button onClick={onReset} className="flex-1">
+            <Button onClick={onReset} variant="outline" className="flex-1">
               <Music className="h-4 w-4 mr-2" />
               Создать новый трек
             </Button>

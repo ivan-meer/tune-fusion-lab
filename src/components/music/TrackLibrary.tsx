@@ -1,3 +1,21 @@
+/**
+ * TrackLibrary Component - Refactored Version
+ * 
+ * Enhanced music library with global audio player integration
+ * Features comprehensive track management with modern UX/UI
+ * 
+ * Features:
+ * - Integrated global audio player
+ * - Responsive grid/list views
+ * - Advanced filtering and search
+ * - Real-time updates via Supabase
+ * - Batch operations support
+ * - Admin panel for debugging
+ * 
+ * @author AI Music Generator Team
+ * @version 2.0.0 - Refactored with global player integration
+ */
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,183 +25,37 @@ import { Badge } from '@/components/ui/badge';
 import { useUserTracks, Track } from '@/hooks/useUserTracks';
 import { useToast } from '@/hooks/use-toast';
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import AdminPanel from '@/components/ui/admin-panel';
+import TrackCard from '@/components/music/library/TrackCard';
 import { 
   Music, 
-  Play, 
-  Pause, 
-  Download, 
-  Share, 
-  Trash2, 
   Search,
   Filter,
   Grid,
   List,
-  Heart,
-  Clock,
   Sparkles,
-  Settings
+  Settings,
+  Play,
+  RefreshCw
 } from 'lucide-react';
 
-interface TrackCardProps {
-  track: Track;
-  isPlaying: boolean;
-  onPlay: () => void;
-  onPause: () => void;
-  onLike: () => void;
-  onDelete: () => void;
-  viewMode: 'grid' | 'list';
-}
-
-function TrackCard({ track, isPlaying, onPlay, onPause, onLike, onDelete, viewMode }: TrackCardProps) {
-  const formatDuration = (seconds?: number) => {
-    if (!seconds) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  };
-
-  if (viewMode === 'list') {
-    return (
-      <div className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-        <div className="relative">
-          {track.artwork_url ? (
-            <img 
-              src={track.artwork_url} 
-              alt={track.title}
-              className="w-12 h-12 rounded object-cover"
-            />
-          ) : (
-            <div className="w-12 h-12 rounded bg-muted flex items-center justify-center">
-              <Music className="w-6 h-6 text-muted-foreground" />
-            </div>
-          )}
-          <Button
-            size="sm"
-            variant="secondary"
-            className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity"
-            onClick={isPlaying ? onPause : onPlay}
-          >
-            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-          </Button>
-        </div>
-        
-        <div className="flex-1 min-w-0">
-          <h3 className="font-medium truncate">{track.title}</h3>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Badge variant="outline" className="text-xs">
-              {track.provider}
-            </Badge>
-            {track.genre && <span>{track.genre}</span>}
-            <span>{formatDuration(track.duration)}</span>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Heart className="w-4 h-4" />
-            {track.like_count}
-          </div>
-          <span>{formatDate(track.created_at)}</span>
-        </div>
-        
-        <div className="flex items-center gap-1">
-          <Button size="sm" variant="ghost" onClick={onLike}>
-            <Heart className="w-4 h-4" />
-          </Button>
-          <Button size="sm" variant="ghost">
-            <Download className="w-4 h-4" />
-          </Button>
-          <Button size="sm" variant="ghost">
-            <Share className="w-4 h-4" />
-          </Button>
-          <Button size="sm" variant="ghost" onClick={onDelete}>
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <Card className="group hover:shadow-lg transition-all">
-      <CardContent className="p-4">
-        <div className="aspect-square relative mb-3">
-          {track.artwork_url ? (
-            <img 
-              src={track.artwork_url} 
-              alt={track.title}
-              className="w-full h-full object-cover rounded"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 rounded flex items-center justify-center">
-              <Music className="w-12 h-12 text-primary" />
-            </div>
-          )}
-          
-          <Button
-            size="sm"
-            className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={isPlaying ? onPause : onPlay}
-          >
-            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-          </Button>
-        </div>
-        
-        <div className="space-y-2">
-          <h3 className="font-medium truncate">{track.title}</h3>
-          
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                {track.provider}
-              </Badge>
-              {track.genre && <span className="text-xs">{track.genre}</span>}
-            </div>
-            <span className="text-xs">{formatDuration(track.duration)}</span>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Heart className="w-3 h-3" />
-              {track.like_count}
-            </div>
-            
-            <div className="flex items-center gap-1">
-              <Button size="sm" variant="ghost" onClick={onLike}>
-                <Heart className="w-3 h-3" />
-              </Button>
-              <Button size="sm" variant="ghost">
-                <Download className="w-3 h-3" />
-              </Button>
-              <Button size="sm" variant="ghost" onClick={onDelete}>
-                <Trash2 className="w-3 h-3" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+/**
+ * Main TrackLibrary component - now streamlined with new TrackCard
+ * Focuses on state management and layout while delegating display to TrackCard
+ */
 
 export default function TrackLibrary() {
+  // State management for UI controls
   const [searchQuery, setSearchQuery] = useState('');
   const [filterProvider, setFilterProvider] = useState<string>('all');
   const [filterGenre, setFilterGenre] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const [showAdmin, setShowAdmin] = useState(false);
   
+  // Data management hooks
   const { tracks, isLoading, error, loadTracks, deleteTrack, likeTrack } = useUserTracks();
+  const [playerState, playerActions] = useAudioPlayer();
   const { toast } = useToast();
   
   // Real-time updates for tracks
@@ -214,21 +86,22 @@ export default function TrackLibrary() {
     return matchesSearch && matchesProvider && matchesGenre;
   });
 
-  // Get unique genres for filter
+  // Get unique genres for filter dropdown
   const genres = Array.from(new Set(tracks.map(track => track.genre).filter(Boolean)));
 
-  const handlePlay = (trackId: string) => {
-    setCurrentlyPlaying(trackId);
-  };
-
-  const handlePause = () => {
-    setCurrentlyPlaying(null);
-  };
-
+  /**
+   * Handle track like/unlike action
+   * Includes error handling and user feedback
+   */
   const handleLike = async (trackId: string) => {
     try {
       await likeTrack(trackId);
+      toast({
+        title: "Лайк обновлен",
+        description: "Статус лайка для трека изменен"
+      });
     } catch (error) {
+      console.error('Like track error:', error);
       toast({
         title: "Ошибка",
         description: "Не удалось поставить лайк",
@@ -237,20 +110,102 @@ export default function TrackLibrary() {
     }
   };
 
+  /**
+   * Handle track deletion with confirmation
+   * TODO: Add confirmation dialog before deletion
+   */
   const handleDelete = async (trackId: string, trackTitle: string) => {
     try {
+      // Stop playback if this track is currently playing
+      if (playerState.currentTrack?.id === trackId) {
+        playerActions.stop();
+      }
+      
       await deleteTrack(trackId);
       toast({
         title: "Трек удален",
         description: `"${trackTitle}" был удален из библиотеки`
       });
     } catch (error) {
+      console.error('Delete track error:', error);
       toast({
         title: "Ошибка",
         description: "Не удалось удалить трек",
         variant: "destructive"
       });
     }
+  };
+
+  /**
+   * Handle track download
+   * TODO: Implement proper download with progress tracking
+   */
+  const handleDownload = (track: Track) => {
+    if (!track.file_url) {
+      toast({
+        title: "Ошибка",
+        description: "Файл трека недоступен для скачивания",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Simple download implementation
+    const link = document.createElement('a');
+    link.href = track.file_url;
+    link.download = `${track.title}.mp3`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Скачивание началось",
+      description: `Трек "${track.title}" загружается`
+    });
+  };
+
+  /**
+   * Handle track sharing
+   * TODO: Implement Web Share API with fallbacks
+   */
+  const handleShare = async (track: Track) => {
+    try {
+      if (navigator.share && track.file_url) {
+        await navigator.share({
+          title: track.title,
+          text: `Послушайте этот трек: ${track.title}`,
+          url: track.file_url
+        });
+      } else {
+        // Fallback to copying link
+        await navigator.clipboard.writeText(track.file_url || window.location.href);
+        toast({
+          title: "Ссылка скопирована",
+          description: "Ссылка на трек скопирована в буфер обмена"
+        });
+      }
+    } catch (error) {
+      console.error('Share track error:', error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось поделиться треком",
+        variant: "destructive"
+      });
+    }
+  };
+
+  /**
+   * Play all filtered tracks as playlist
+   * Sets up global player with current filtered track list
+   */
+  const playAllTracks = () => {
+    if (filteredTracks.length === 0) return;
+    
+    playerActions.playTrack(filteredTracks[0], filteredTracks);
+    toast({
+      title: "Плейлист запущен",
+      description: `Запущено воспроизведение ${filteredTracks.length} треков`
+    });
   };
 
   if (isLoading) {
@@ -318,6 +273,19 @@ export default function TrackLibrary() {
               </Badge>
             </div>
             <div className="flex items-center gap-2">
+              {/* Play all button */}
+              {filteredTracks.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={playAllTracks}
+                  className="gap-1"
+                >
+                  <Play className="h-4 w-4" />
+                  Играть все ({filteredTracks.length})
+                </Button>
+              )}
+              
               <Button
                 variant="outline"
                 size="sm"
@@ -326,12 +294,14 @@ export default function TrackLibrary() {
                 <Settings className="h-4 w-4 mr-1" />
                 {showAdmin ? 'Скрыть логи' : 'Показать логи'}
               </Button>
+              
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={loadTracks}
                 disabled={isLoading}
               >
+                <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
                 {isLoading ? 'Обновление...' : 'Обновить'}
               </Button>
             </div>
@@ -423,12 +393,12 @@ export default function TrackLibrary() {
                 <TrackCard
                   key={track.id}
                   track={track}
-                  isPlaying={currentlyPlaying === track.id}
-                  onPlay={() => handlePlay(track.id)}
-                  onPause={handlePause}
+                  viewMode={viewMode}
+                  isCurrentlyPlaying={playerState.currentTrack?.id === track.id}
                   onLike={() => handleLike(track.id)}
                   onDelete={() => handleDelete(track.id, track.title)}
-                  viewMode={viewMode}
+                  onDownload={() => handleDownload(track)}
+                  onShare={() => handleShare(track)}
                 />
               ))}
             </div>
