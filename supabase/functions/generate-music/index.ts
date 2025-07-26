@@ -179,7 +179,7 @@ serve(async (req) => {
 
 function getDefaultModel(provider: string): string {
   switch (provider) {
-    case 'suno': return 'V4_5'; // Correct Suno API model name
+    case 'suno': return 'V4_5'; // ПРАВИЛЬНАЯ модель Suno V4.5
     case 'mureka': return 'mureka-v6';
     case 'test': return 'test';
     default: return 'V4_5';
@@ -369,7 +369,7 @@ async function generateWithSuno(
     title: prompt.slice(0, 80),
     model: model,
     customMode: true, // ОБЯЗАТЕЛЬНЫЙ ПАРАМЕТР для Suno API
-    make_instrumental: instrumental, // КРИТИЧЕСКИ ВАЖНО - НЕ УДАЛЯТЬ!
+    instrumental: instrumental, // ПРАВИЛЬНЫЙ ПАРАМЕТР - НЕ make_instrumental!
     callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
   };
 
@@ -381,7 +381,8 @@ async function generateWithSuno(
   console.log('=== FIXED REQUEST PAYLOAD ===');
   console.log(JSON.stringify(generateRequest, null, 2));
   console.log('Parameters included:', Object.keys(generateRequest));
-  console.log('make_instrumental type:', typeof generateRequest.make_instrumental, 'value:', generateRequest.make_instrumental);
+  console.log('instrumental type:', typeof generateRequest.instrumental, 'value:', generateRequest.instrumental);
+  console.log('customMode type:', typeof generateRequest.customMode, 'value:', generateRequest.customMode);
   console.log('Lyrics present:', !!generateRequest.lyrics);
 
   const result = await retryApiCall(async () => {
