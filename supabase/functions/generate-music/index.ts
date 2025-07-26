@@ -443,7 +443,7 @@ async function generateLyricsWithSuno(prompt: string, style: string): Promise<{l
   console.log('Generating lyrics with Suno built-in API...');
   
   const lyricsRequest = {
-    prompt: `Create song lyrics for: ${prompt}`,
+    prompt: prompt, // Используем промпт как тему для генерации лирики
     style: style,
     language: "russian"
   };
