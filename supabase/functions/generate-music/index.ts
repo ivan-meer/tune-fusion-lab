@@ -98,52 +98,21 @@ serve(async (req) => {
 
     console.log(`Created generation job: ${jobData.id}`);
 
-    // Process generation synchronously instead of background task
-    try {
-      await processGeneration(jobData.id, provider, model, prompt, style, duration, instrumental, lyrics, supabaseAdmin);
-      
-      // Get the updated job with track data
-      const { data: updatedJob } = await supabaseAdmin
-        .from('generation_jobs')
-        .select(`
-          *,
-          tracks (
-            id,
-            title,
-            file_url,
-            artwork_url,
-            duration,
-            created_at
-          )
-        `)
-        .eq('id', jobData.id)
-        .single();
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          jobId: jobData.id,
-          job: updatedJob
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-      
-    } catch (error) {
-      console.error('Generation failed:', error);
-      
-      // Update job to failed
-      await supabaseAdmin
-        .from('generation_jobs')
-        .update({
-          status: 'failed',
-          error_message: error.message
-        })
-        .eq('id', jobData.id);
-        
-      throw error;
-    }
+    // Start background processing without waiting
+    EdgeRuntime.waitUntil(processGeneration(jobData.id, provider, model, prompt, style, duration, instrumental, lyrics, supabaseAdmin));
+    
+    // Return immediate response
+    return new Response(
+      JSON.stringify({
+        success: true,
+        jobId: jobData.id,
+        message: 'Generation started',
+        status: 'pending'
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
 
   } catch (error) {
     console.error('Error in generate-music function:', error);
