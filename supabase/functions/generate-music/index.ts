@@ -24,37 +24,43 @@ serve(async (req) => {
 
   try {
     console.log('Creating Supabase client...');
-    console.log('Authorization header:', req.headers.get('Authorization'));
+    const authHeader = req.headers.get('Authorization');
+    console.log('Authorization header present:', !!authHeader);
     
-    // Use hardcoded values since env vars might not be available
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || 'https://psqxgksushbaoisbbdir.supabase.co';
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzcXhna3N1c2hiYW9pc2JiZGlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc4ODQzNTEsImV4cCI6MjA2MzQ2MDM1MX0.lhdQtxSv5syaYA59u7XFY3Ar5BesVJkC2tVWlO7CmwE';
+    // Use service role key for server-side operations
+    const supabaseUrl = 'https://psqxgksushbaoisbbdir.supabase.co';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
-    console.log('Supabase URL:', supabaseUrl);
-    console.log('Supabase Key present:', !!supabaseKey);
+    if (!supabaseServiceKey) {
+      throw new Error('SUPABASE_SERVICE_ROLE_KEY not configured');
+    }
     
     const supabaseClient = createClient(
       supabaseUrl,
-      supabaseKey,
+      supabaseServiceKey,
       {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
       }
     );
 
-    // Get user from JWT token
-    console.log('Getting user from JWT...');
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseClient.auth.getUser();
+    // Verify JWT token manually
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new Error('No valid authorization header');
+    }
 
-    console.log('User result:', { user: user?.id, userError });
+    const jwt = authHeader.replace('Bearer ', '');
+    
+    // Verify JWT token using service role client
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(jwt);
+
+    console.log('User verification result:', { userId: user?.id, error: userError?.message });
 
     if (userError || !user) {
       console.error('Authorization failed:', userError);
-      throw new Error(`Unauthorized: ${userError?.message || 'No user found'}`);
+      throw new Error(`Unauthorized: ${userError?.message || 'Invalid token'}`);
     }
 
     const {
