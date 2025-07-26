@@ -137,7 +137,7 @@ export function useUserTracks() {
     } finally {
       setIsLoading(false);
     }
-  }, [user, trackStorage]);
+  }, [user]); // FIXED: Removed trackStorage dependency to prevent recreation loops
 
   const deleteTrack = useCallback(async (trackId: string) => {
     if (!user) return;
@@ -233,13 +233,13 @@ export function useUserTracks() {
       }
 
       // Reload tracks to get updated counts
-      await loadTracks();
+      await loadTracks(false); // FIXED: No auto-sync to prevent loops
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to like track';
       setError(errorMessage);
       throw err;
     }
-  }, [user, tracks, loadTracks]);
+  }, [user, tracks]); // FIXED: Removed loadTracks from dependencies
 
   /**
    * Manually sync all track URLs with storage bucket
@@ -248,8 +248,38 @@ export function useUserTracks() {
   const syncTrackStorage = useCallback(async () => {
     try {
       await trackStorage.syncTrackUrls();
-      // Reload tracks to get updated URLs
-      await loadTracks(false); // Don't sync again to avoid loop
+      
+      // Manually reload tracks instead of calling loadTracks to avoid dep issues
+      if (!user) return;
+
+      const { data, error: fetchError } = await supabase
+        .from('tracks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (!fetchError && data) {
+        const transformedTracks: Track[] = data.map((dbTrack: DatabaseTrack) => ({
+          id: dbTrack.id,
+          title: dbTrack.title,
+          description: dbTrack.description || undefined,
+          duration: dbTrack.duration || undefined,
+          file_url: dbTrack.file_url || undefined,
+          artwork_url: dbTrack.artwork_url || undefined,
+          genre: dbTrack.genre || undefined,
+          mood: dbTrack.mood || undefined,
+          bpm: dbTrack.bpm || undefined,
+          is_public: dbTrack.is_public,
+          provider: (dbTrack.provider as 'mureka' | 'suno' | 'hybrid') || 'suno',
+          lyrics: dbTrack.lyrics || undefined,
+          tags: dbTrack.tags || undefined,
+          play_count: dbTrack.play_count,
+          like_count: dbTrack.like_count,
+          created_at: dbTrack.created_at,
+          updated_at: dbTrack.updated_at
+        }));
+        setTracks(transformedTracks);
+      }
       
       toast({
         title: "Синхронизация завершена",
@@ -263,7 +293,7 @@ export function useUserTracks() {
         variant: "destructive",
       });
     }
-  }, [trackStorage, loadTracks, toast]);
+  }, [trackStorage, toast, user]); // FIXED: Added user dep but inline track loading
 
   /**
    * Upload a new track file to storage and create database record
@@ -349,11 +379,11 @@ export function useUserTracks() {
   // Load tracks when user changes
   useEffect(() => {
     if (user) {
-      loadTracks();
+      loadTracks(false); // FIXED: Call directly, remove from deps to prevent loop
     } else {
       setTracks([]);
     }
-  }, [user, loadTracks]);
+  }, [user]); // FIXED: Only depend on user, not loadTracks
 
   return {
     tracks,
