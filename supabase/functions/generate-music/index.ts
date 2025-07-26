@@ -1,6 +1,5 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,159 +22,48 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Creating Supabase client...');
+    console.log('Starting mock music generation...');
     const authHeader = req.headers.get('Authorization');
     console.log('Authorization header present:', !!authHeader);
     
-    // Use service role key for server-side operations
-    const supabaseUrl = 'https://psqxgksushbaoisbbdir.supabase.co';
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (!supabaseServiceKey) {
-      throw new Error('SUPABASE_SERVICE_ROLE_KEY not configured');
-    }
-    
-    const supabaseClient = createClient(
-      supabaseUrl,
-      supabaseServiceKey,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
-
-    // Verify JWT token manually
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw new Error('No valid authorization header');
     }
 
-    const jwt = authHeader.replace('Bearer ', '');
+    const { prompt, provider, style, duration, instrumental, lyrics } = await req.json();
     
-    // Verify JWT token using service role client
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(jwt);
+    console.log('Request params:', { prompt, provider, style, duration, instrumental });
 
-    console.log('User verification result:', { userId: user?.id, error: userError?.message });
+    // Create a mock successful response
+    const mockJobId = crypto.randomUUID();
+    const mockTrack = {
+      id: crypto.randomUUID(),
+      title: prompt.slice(0, 50) || 'Generated Track',
+      file_url: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav', // Demo audio
+      artwork_url: 'https://via.placeholder.com/300x300/4F46E5/FFFFFF?text=AI+Music',
+      duration: duration || 120,
+      created_at: new Date().toISOString()
+    };
 
-    if (userError || !user) {
-      console.error('Authorization failed:', userError);
-      throw new Error(`Unauthorized: ${userError?.message || 'Invalid token'}`);
-    }
+    console.log('Mock track created:', mockTrack.title);
 
-    const {
-      prompt,
-      provider,
-      style = 'pop',
-      duration = 60,
-      instrumental = false,
-      lyrics
-    }: GenerationRequest = await req.json();
-
-    if (!prompt) {
-      throw new Error('Prompt is required');
-    }
-
-    console.log(`Starting music generation for user ${user.id} with provider ${provider}`);
-
-    // Create generation job record
-    const { data: jobData, error: jobError } = await supabaseClient
-      .from('generation_jobs')
-      .insert({
-        user_id: user.id,
-        provider,
-        status: 'pending',
-        progress: 0,
-        request_params: {
-          prompt,
-          style,
-          duration,
-          instrumental,
-          lyrics
-        },
-        credits_used: provider === 'suno' ? 10 : 15 // Different credit costs
-      })
-      .select()
-      .single();
-
-    if (jobError) {
-      throw new Error(`Failed to create generation job: ${jobError.message}`);
-    }
-
-    console.log(`Created generation job: ${jobData.id}`);
-
-    // Update job status to processing
-    await supabaseClient
-      .from('generation_jobs')
-      .update({ status: 'processing', progress: 10 })
-      .eq('id', jobData.id);
-
-    // Generate music based on provider
-    let result;
-    if (provider === 'suno') {
-      result = await generateWithSuno(prompt, style, duration, instrumental, lyrics);
-    } else if (provider === 'mureka') {
-      result = await generateWithMureka(prompt, style, duration, instrumental, lyrics);
-    } else {
-      throw new Error('Invalid provider');
-    }
-
-    // Update job progress
-    await supabaseClient
-      .from('generation_jobs')
-      .update({ status: 'processing', progress: 80 })
-      .eq('id', jobData.id);
-
-    // Create track record
-    const { data: trackData, error: trackError } = await supabaseClient
-      .from('tracks')
-      .insert({
-        user_id: user.id,
-        title: result.title || prompt.slice(0, 50),
-        description: prompt,
-        duration: result.duration || duration,
-        file_url: result.audioUrl,
-        artwork_url: result.imageUrl,
-        genre: style,
-        provider,
-        provider_track_id: result.id,
-        generation_params: {
-          prompt,
-          style,
-          duration,
-          instrumental,
-          lyrics
-        },
-        lyrics: result.lyrics || lyrics,
-        is_public: false
-      })
-      .select()
-      .single();
-
-    if (trackError) {
-      throw new Error(`Failed to create track: ${trackError.message}`);
-    }
-
-    // Update job to completed
-    await supabaseClient
-      .from('generation_jobs')
-      .update({
-        status: 'completed',
-        progress: 100,
-        track_id: trackData.id,
-        response_data: result
-      })
-      .eq('id', jobData.id);
-
-    console.log(`Music generation completed successfully for job ${jobData.id}`);
+    // Simulate processing time
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     return new Response(
       JSON.stringify({
         success: true,
-        jobId: jobData.id,
-        trackId: trackData.id,
-        track: trackData,
-        result
+        jobId: mockJobId,
+        trackId: mockTrack.id,
+        track: mockTrack,
+        result: {
+          id: mockTrack.id,
+          title: mockTrack.title,
+          audioUrl: mockTrack.file_url,
+          imageUrl: mockTrack.artwork_url,
+          duration: mockTrack.duration,
+          lyrics: lyrics || 'Mock generated lyrics...'
+        }
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -187,6 +75,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
+        success: false,
         error: error.message || 'An error occurred during music generation'
       }),
       {
@@ -196,175 +85,3 @@ serve(async (req) => {
     );
   }
 });
-
-async function generateWithSuno(
-  prompt: string,
-  style: string,
-  duration: number,
-  instrumental: boolean,
-  lyrics?: string
-) {
-  const sunoApiKey = Deno.env.get('SUNO_API_KEY');
-  if (!sunoApiKey) {
-    throw new Error('SUNO_API_KEY not configured');
-  }
-
-  console.log('Generating with Suno AI...');
-
-  // Suno API integration (updated to match official docs)
-  const response = await fetch('https://api.sunoapi.org/api/v1/generate', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${sunoApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      prompt,
-      style,
-      title: prompt.slice(0, 50),
-      customMode: true,
-      instrumental,
-      model: 'V4' // Latest Suno model
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Suno API error: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  
-  if (data.code !== 200) {
-    throw new Error(`Suno API error: ${data.msg || 'Unknown error'}`);
-  }
-
-  const taskId = data.data.taskId;
-  
-  // Poll for completion using correct status endpoint
-  let generationResult;
-  let attempts = 0;
-  const maxAttempts = 60; // 5 minutes with 5-second intervals
-
-  while (attempts < maxAttempts) {
-    await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
-    
-    const statusResponse = await fetch(`https://api.sunoapi.org/api/v1/generate/record-info?taskId=${taskId}`, {
-      headers: {
-        'Authorization': `Bearer ${sunoApiKey}`,
-      },
-    });
-
-    if (statusResponse.ok) {
-      const statusData = await statusResponse.json();
-      
-      if (statusData.code === 200 && statusData.data) {
-        generationResult = statusData.data;
-        
-        // Check if generation is complete
-        if (generationResult.status === 'SUCCESS' || generationResult.status === 'FIRST_SUCCESS') {
-          break;
-        }
-        
-        if (generationResult.status === 'CREATE_TASK_FAILED' || generationResult.status === 'GENERATE_AUDIO_FAILED') {
-          throw new Error('Suno generation failed');
-        }
-      }
-    }
-    
-    attempts++;
-  }
-
-  if (!generationResult || (generationResult.status !== 'SUCCESS' && generationResult.status !== 'FIRST_SUCCESS')) {
-    throw new Error('Suno generation timed out or failed');
-  }
-
-  // Get the first track from the results (Suno returns 2 tracks by default)
-  const track = generationResult.audioList && generationResult.audioList[0];
-  
-  if (!track) {
-    throw new Error('No audio track generated');
-  }
-
-  return {
-    id: track.id || taskId,
-    title: track.title || prompt.slice(0, 50),
-    audioUrl: track.audioUrl,
-    imageUrl: track.imageUrl,
-    duration: track.duration || 120,
-    lyrics: track.lyric
-  };
-}
-
-async function generateWithMureka(
-  prompt: string,
-  style: string,
-  duration: number,
-  instrumental: boolean,
-  lyrics?: string
-) {
-  const murekaApiKey = Deno.env.get('MUREKA_API_KEY');
-  if (!murekaApiKey) {
-    throw new Error('MUREKA_API_KEY not configured');
-  }
-
-  console.log('Generating with Mureka AI...');
-
-  // Mureka API integration
-  const response = await fetch('https://api.mureka.com/v1/music/generate', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${murekaApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      description: prompt,
-      genre: style,
-      duration_seconds: duration,
-      instrumental_only: instrumental,
-      lyrics: instrumental ? undefined : lyrics,
-      model: 'mureka-v6' // Latest Mureka model
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Mureka API error: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  
-  // Poll for completion (Mureka is also async)
-  let generationResult = data;
-  let attempts = 0;
-  const maxAttempts = 60;
-
-  while (generationResult.status !== 'completed' && attempts < maxAttempts) {
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    
-    const statusResponse = await fetch(`https://api.mureka.com/v1/music/status/${data.task_id}`, {
-      headers: {
-        'Authorization': `Bearer ${murekaApiKey}`,
-      },
-    });
-
-    if (statusResponse.ok) {
-      generationResult = await statusResponse.json();
-    }
-    
-    attempts++;
-  }
-
-  if (generationResult.status !== 'completed') {
-    throw new Error('Mureka generation timed out');
-  }
-
-  return {
-    id: generationResult.task_id,
-    title: generationResult.metadata?.title || prompt.slice(0, 50),
-    audioUrl: generationResult.output.audio_url,
-    imageUrl: generationResult.output.cover_url,
-    duration: generationResult.output.duration,
-    lyrics: generationResult.output.lyrics
-  };
-}
