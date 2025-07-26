@@ -355,7 +355,7 @@ async function generateWithSuno(
     tags: generateTags(style, instrumental),
     title: prompt.slice(0, 80),
     make_instrumental: instrumental,
-    model: "chirp-v4-5", // Latest and best model
+    model: "V4_5", // Latest and best model according to docs
     wait_audio: false,
     callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
   };
@@ -392,11 +392,22 @@ async function generateWithSuno(
   console.log('=== SUNO API RESPONSE ===');
   console.log('Response data:', JSON.stringify(result, null, 2));
   
-  // Extract task ID with improved logic
+  // Handle Suno API response format: {code: 200, msg: "success", data: {taskId: "..."}}
+  if (result.code !== 200) {
+    throw new Error(`Suno API error: ${result.msg || result.error || 'Unknown error'}`);
+  }
+  
+  // Extract task ID from response
   const taskId = extractTaskId(result);
   if (!taskId) {
     console.error('Failed to extract task ID from response:', result);
-    throw new Error(`No task ID found in Suno API response`);
+    console.error('Response structure analysis:');
+    console.error('- result.data:', result.data);
+    console.error('- typeof result.data:', typeof result.data);
+    if (result.data) {
+      console.error('- Object.keys(result.data):', Object.keys(result.data));
+    }
+    throw new Error(`No task ID found in Suno API response: ${JSON.stringify(result)}`);
   }
   
   console.log('Successfully extracted task ID:', taskId);
@@ -509,7 +520,7 @@ function generateTags(style: string, instrumental: boolean): string {
 }
 
 function extractTaskId(response: any): string | null {
-  // Multiple extraction strategies for different response formats
+  // Handle Suno API response format: {code: 200, msg: "success", data: {taskId: "..."}}
   if (response.data) {
     if (Array.isArray(response.data) && response.data.length > 0) {
       return response.data[0].taskId || response.data[0].task_id || response.data[0].id;
@@ -518,6 +529,7 @@ function extractTaskId(response: any): string | null {
     }
   }
   
+  // Fallback for other formats
   return response.taskId || response.task_id || response.id || null;
 }
 
