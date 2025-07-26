@@ -23,6 +23,9 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Creating Supabase client...');
+    console.log('Authorization header:', req.headers.get('Authorization'));
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -34,13 +37,17 @@ serve(async (req) => {
     );
 
     // Get user from JWT token
+    console.log('Getting user from JWT...');
     const {
       data: { user },
       error: userError,
     } = await supabaseClient.auth.getUser();
 
+    console.log('User result:', { user: user?.id, userError });
+
     if (userError || !user) {
-      throw new Error('Unauthorized');
+      console.error('Authorization failed:', userError);
+      throw new Error(`Unauthorized: ${userError?.message || 'No user found'}`);
     }
 
     const {
