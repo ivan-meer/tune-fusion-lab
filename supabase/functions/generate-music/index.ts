@@ -270,21 +270,26 @@ async function generateWithSuno(
 
   console.log('Generating with Suno AI...');
 
-  // Use SunoAPI.org endpoint with correct format
+  // Prepare callback URL
+  const callBackUrl = `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`;
+  
+  // Use new Suno API endpoint with correct format
   const generateRequest = {
     prompt: lyrics ? `${prompt}. Lyrics: ${lyrics}` : prompt,
+    model: 'V4',
+    make_instrumental: instrumental,
     tags: style,
     title: prompt.slice(0, 80),
-    make_instrumental: instrumental,
-    wait_audio: true
+    wait_audio: false,
+    callBackUrl: callBackUrl
   };
   
   console.log('Request payload:', JSON.stringify(generateRequest, null, 2));
 
-  const response = await fetch('https://sunoapi.org/api/v1/generate', {
+  const response = await fetch('https://api.sunoapi.org/api/v1/music/generate', {
     method: 'POST',
     headers: {
-      'api-key': sunoApiKey,
+      'Authorization': `Bearer ${sunoApiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(generateRequest),
@@ -303,22 +308,24 @@ async function generateWithSuno(
     throw new Error(`Suno API error: ${data.error || 'Unknown error'}`);
   }
 
-  const taskId = data.data[0]?.task_id;
+  const taskId = data.data?.task_id || data.data?.id;
   if (!taskId) {
     throw new Error('No task ID received from Suno API');
   }
   
-  // Poll for completion
+  // Poll for completion using new endpoint
   let generationResult;
   let attempts = 0;
   const maxAttempts = 60;
 
   while (attempts < maxAttempts) {
-    await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds between polls
+    await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds between polls
     
-    const statusResponse = await fetch(`https://sunoapi.org/api/v1/generate/record-info?ids=${taskId}`, {
+    const statusResponse = await fetch(`https://api.sunoapi.org/api/v1/music/details?taskId=${taskId}`, {
+      method: 'GET',
       headers: {
-        'api-key': sunoApiKey,
+        'Authorization': `Bearer ${sunoApiKey}`,
+        'Content-Type': 'application/json',
       },
     });
 
@@ -329,13 +336,13 @@ async function generateWithSuno(
       if (statusData.success && statusData.data && statusData.data.length > 0) {
         const track = statusData.data[0];
         
-        if ((track.status === 'streaming' || track.status === 'SUCCESS') && track.audio_url) {
+        if (track.status === 'completed' && track.audioUrl) {
           generationResult = track;
           break;
         }
         
-        if (track.status === 'GENERATE_AUDIO_FAILED' || track.status === 'CREATE_TASK_FAILED') {
-          throw new Error(`Suno generation failed: ${track.status}`);
+        if (track.status === 'failed') {
+          throw new Error(`Suno generation failed: ${track.error_message || 'Unknown error'}`);
         }
       }
     }
@@ -347,17 +354,17 @@ async function generateWithSuno(
     throw new Error('Suno generation timed out');
   }
 
-  if (!generationResult.audio_url) {
+  if (!generationResult.audioUrl) {
     throw new Error('No audio track generated. API response: ' + JSON.stringify(generationResult));
   }
 
   return {
     id: generationResult.id || taskId,
     title: generationResult.title || prompt.slice(0, 50),
-    audioUrl: generationResult.audio_url,
+    audioUrl: generationResult.audioUrl,
     imageUrl: generationResult.image_url,
     duration: generationResult.duration || 120,
-    lyrics: generationResult.lyric
+    lyrics: generationResult.lyrics
   };
 }
 

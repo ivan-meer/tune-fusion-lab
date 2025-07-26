@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Music, Zap, Star, Clock, DollarSign } from 'lucide-react';
 
-export type ModelType = 'suno-v3.5' | 'suno-v4' | 'mureka-v6' | 'mureka-o1' | 'test';
+export type ModelType = 'V3_5' | 'V4' | 'V4_5' | 'mureka-v6' | 'mureka-o1' | 'test';
 
 interface ModelInfo {
   id: ModelType;
@@ -20,26 +20,37 @@ interface ModelInfo {
 
 const modelConfigs: ModelInfo[] = [
   {
-    id: 'suno-v4',
-    name: 'Suno v4',
+    id: 'V4',
+    name: 'Suno V4',
     provider: 'Suno AI',
-    description: 'Новейшая модель с улучшенным качеством звука и естественностью',
-    features: ['Высокое качество', 'Быстрая генерация', 'Поддержка текста'],
-    cost: 15,
-    duration: '2-3 мин',
+    description: 'Продвинутая модель с улучшенным качеством звука',
+    features: ['Высокое качество', 'Лучшая музыкальность', 'Четкий вокал'],
+    cost: 10,
+    duration: 'До 4 минут',
     quality: 5,
     icon: Sparkles
   },
   {
-    id: 'suno-v3.5',
-    name: 'Suno v3.5',
+    id: 'V3_5',
+    name: 'Suno V3.5',
     provider: 'Suno AI',
-    description: 'Стабильная модель с хорошим балансом качества и скорости',
-    features: ['Стабильность', 'Хорошее качество', 'Экономично'],
-    cost: 10,
-    duration: '1-2 мин',
+    description: 'Сбалансированная модель для создания качественной музыки',
+    features: ['Быстрая генерация', 'Хорошее качество звука', 'Стабильность'],
+    cost: 8,
+    duration: 'До 4 минут',
     quality: 4,
     icon: Sparkles
+  },
+  {
+    id: 'V4_5',
+    name: 'Suno V4.5',
+    provider: 'Suno AI',
+    description: 'Новейшая модель с поддержкой длинных треков',
+    features: ['Максимальное качество', 'Длинные композиции', 'Профессиональное звучание'],
+    cost: 15,
+    duration: 'До 8 минут',
+    quality: 5,
+    icon: Music
   },
   {
     id: 'mureka-v6',
@@ -86,7 +97,7 @@ interface ModelSelectorProps {
 export default function ModelSelector({ value, onChange, provider = 'all', showDetails = true }: ModelSelectorProps) {
   const availableModels = modelConfigs.filter(model => {
     if (provider === 'all') return true;
-    if (provider === 'suno') return model.id.startsWith('suno-');
+    if (provider === 'suno') return model.id.startsWith('V');
     if (provider === 'mureka') return model.id.startsWith('mureka-');
     if (provider === 'test') return model.id === 'test';
     return true;
