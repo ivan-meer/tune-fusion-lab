@@ -188,6 +188,11 @@ export default function TrackLibrary() {
     onTrackUpdate: () => {
       console.log('Real-time track update detected, refreshing...');
       loadTracks();
+      
+      toast({
+        title: "Новый трек добавлен!",
+        description: "Ваша библиотека была обновлена"
+      });
     }
   });
   

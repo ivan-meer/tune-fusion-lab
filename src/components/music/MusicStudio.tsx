@@ -12,6 +12,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { useMusicGeneration, GenerationRequest } from '@/hooks/useMusicGeneration';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
+import GenerationProgress from './GenerationProgress';
 import { Wand2, Sparkles, Music, Play, Download, Share, Shuffle, Zap } from 'lucide-react';
 
 interface AudioPlayerProps {
@@ -123,6 +124,17 @@ export default function MusicStudio() {
       await generateMusic(request);
     } catch (error) {
       console.error('Generation error:', error);
+      // Error is already handled in the hook
+    }
+  };
+
+  const handleRetry = () => {
+    if (currentJob) {
+      resetGeneration();
+      // Small delay to ensure state is reset
+      setTimeout(() => {
+        handleGenerate();
+      }, 100);
     }
   };
 
@@ -291,66 +303,11 @@ export default function MusicStudio() {
               </Button>
             </>
           ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Генерация в процессе</h3>
-                <Badge variant={currentJob.status === 'completed' ? 'default' : 'secondary'}>
-                  {currentJob.status === 'processing' ? 'Обработка' : 
-                   currentJob.status === 'completed' ? 'Завершено' : 
-                   currentJob.status === 'failed' ? 'Ошибка' : 'Ожидание'}
-                </Badge>
-              </div>
-              
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground mb-2">Промпт:</p>
-                <p className="text-sm">{prompt}</p>
-                <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
-                  <span>Провайдер: {provider}</span>
-                  <span>Стиль: {style}</span>
-                  <span>Длительность: {duration[0]}с</span>
-                  {instrumental && <span>Инструментальная</span>}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Прогресс</span>
-                  <span>{Math.round(currentJob.progress)}%</span>
-                </div>
-                <Progress value={currentJob.progress} className="h-2" />
-              </div>
-
-              {currentJob.status === 'completed' && currentJob.track && (
-                <div className="space-y-4">
-                  <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-                    <p className="text-sm font-medium text-primary mb-2">Трек готов!</p>
-                    <AudioPlayer 
-                      src={currentJob.track.file_url} 
-                      title={currentJob.track.title}
-                    />
-                  </div>
-                  
-                  <Button onClick={resetGeneration} variant="outline" className="w-full">
-                    Создать новый трек
-                  </Button>
-                </div>
-              )}
-
-              {currentJob.status === 'failed' && (
-                <div className="space-y-3">
-                  <div className="p-4 bg-destructive/10 rounded-lg border border-destructive/20">
-                    <p className="text-sm font-medium text-destructive">Ошибка генерации</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Попробуйте изменить промпт или выбрать другого провайдера
-                    </p>
-                  </div>
-                  
-                  <Button onClick={resetGeneration} variant="outline" className="w-full">
-                    Попробовать снова
-                  </Button>
-                </div>
-              )}
-            </div>
+            <GenerationProgress 
+              job={currentJob}
+              onReset={resetGeneration}
+              onRetry={currentJob.status === 'failed' ? handleRetry : undefined}
+            />
           )}
         </CardContent>
       </Card>
