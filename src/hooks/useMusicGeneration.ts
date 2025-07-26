@@ -55,39 +55,12 @@ export function useMusicGeneration() {
         throw new Error(data?.error || 'Music generation failed');
       }
 
-      // Check if we have a completed track immediately (mock response)
-      if (data.track && data.result) {
-        console.log('Immediate track result available');
-        setCurrentJob({
-          id: data.jobId,
-          status: 'completed',
-          progress: 100,
-          track: {
-            id: data.track.id,
-            title: data.track.title,
-            file_url: data.track.file_url,
-            artwork_url: data.track.artwork_url,
-            duration: data.track.duration,
-            created_at: data.track.created_at
-          }
-        });
-        
-        setIsGenerating(false);
-        
-        toast({
-          title: "Генерация завершена!",
-          description: `Трек "${data.track.title}" готов к прослушиванию`
-        });
-        
-        return data;
-      }
-
-      // If no immediate result, start polling for status
+      // Start polling for status since generation runs in background
       const jobId = data.jobId;
       setCurrentJob({
         id: jobId,
         status: 'processing',
-        progress: 0
+        progress: 10
       });
 
       // Poll for updates
@@ -100,17 +73,26 @@ export function useMusicGeneration() {
             }
           );
 
-          if (statusError || !statusData.success) {
+          if (statusError || !statusData?.success) {
             console.error('Failed to get generation status:', statusError);
             return;
           }
 
           const job = statusData.job;
+          console.log('Job status update:', job);
+          
           setCurrentJob({
             id: job.id,
             status: job.status,
-            progress: job.progress,
-            track: job.tracks
+            progress: job.progress || 0,
+            track: job.track_id ? {
+              id: job.track_id,
+              title: job.response_data?.title || 'Generated Track',
+              file_url: job.response_data?.audioUrl,
+              artwork_url: job.response_data?.imageUrl,
+              duration: job.response_data?.duration || 120,
+              created_at: new Date().toISOString()
+            } : undefined
           });
 
           if (job.status === 'completed') {

@@ -14,9 +14,13 @@ serve(async (req) => {
   }
 
   try {
+    // Use hardcoded values for consistency
+    const supabaseUrl = 'https://psqxgksushbaoisbbdir.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzcXhna3N1c2hiYW9pc2JiZGlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc4ODQzNTEsImV4cCI6MjA2MzQ2MDM1MX0.lhdQtxSv5syaYA59u7XFY3Ar5BesVJkC2tVWlO7CmwE';
+    
     const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      supabaseUrl,
+      supabaseKey,
       {
         global: {
           headers: { Authorization: req.headers.get('Authorization')! },
@@ -31,11 +35,11 @@ serve(async (req) => {
     } = await supabaseClient.auth.getUser();
 
     if (userError || !user) {
+      console.error('Authorization failed in get-generation-status:', userError);
       throw new Error('Unauthorized');
     }
 
-    const url = new URL(req.url);
-    const jobId = url.searchParams.get('jobId');
+    const { jobId } = await req.json();
 
     if (!jobId) {
       throw new Error('Job ID is required');
