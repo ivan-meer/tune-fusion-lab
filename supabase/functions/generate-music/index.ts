@@ -10,6 +10,7 @@ const corsHeaders = {
 interface GenerationRequest {
   prompt: string;
   provider: 'suno' | 'mureka' | 'test';
+  model?: string;
   style?: string;
   duration?: number;
   instrumental?: boolean;
@@ -57,6 +58,7 @@ serve(async (req) => {
     const {
       prompt,
       provider,
+      model,
       style = 'pop',
       duration = 60,
       instrumental = false,
@@ -73,6 +75,7 @@ serve(async (req) => {
       .insert({
         user_id: user.id,
         provider,
+        model: model || 'default',
         status: 'pending',
         progress: 0,
         request_params: {
@@ -80,7 +83,8 @@ serve(async (req) => {
           style,
           duration,
           instrumental,
-          lyrics
+          lyrics,
+          model
         },
         credits_used: provider === 'suno' ? 10 : provider === 'mureka' ? 15 : 0
       })

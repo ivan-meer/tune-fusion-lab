@@ -115,6 +115,36 @@ export type Database = {
         }
         Relationships: []
       }
+      api_health_logs: {
+        Row: {
+          checked_at: string
+          error_message: string | null
+          id: string
+          model: string | null
+          provider: string
+          response_time: number | null
+          status: string
+        }
+        Insert: {
+          checked_at?: string
+          error_message?: string | null
+          id?: string
+          model?: string | null
+          provider: string
+          response_time?: number | null
+          status: string
+        }
+        Update: {
+          checked_at?: string
+          error_message?: string | null
+          id?: string
+          model?: string | null
+          provider?: string
+          response_time?: number | null
+          status?: string
+        }
+        Relationships: []
+      }
       artifact_versions: {
         Row: {
           artifact_id: string
@@ -266,6 +296,7 @@ export type Database = {
           credits_used: number
           error_message: string | null
           id: string
+          model: string | null
           progress: number
           provider: string
           request_params: Json
@@ -280,6 +311,7 @@ export type Database = {
           credits_used?: number
           error_message?: string | null
           id?: string
+          model?: string | null
           progress?: number
           provider: string
           request_params: Json
@@ -294,6 +326,7 @@ export type Database = {
           credits_used?: number
           error_message?: string | null
           id?: string
+          model?: string | null
           progress?: number
           provider?: string
           request_params?: Json

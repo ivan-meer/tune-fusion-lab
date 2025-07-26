@@ -10,6 +10,8 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useMusicGeneration, GenerationRequest } from '@/hooks/useMusicGeneration';
+import ModelSelector, { ModelType } from '@/components/ui/model-selector';
+import AdminPanel from '@/components/ui/admin-panel';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import GenerationProgress from './GenerationProgress';
@@ -49,10 +51,12 @@ function AudioPlayer({ src, title }: AudioPlayerProps) {
 export default function MusicStudio() {
   const [prompt, setPrompt] = useState('');
   const [provider, setProvider] = useState<'mureka' | 'suno' | 'test'>('test');
+  const [model, setModel] = useState<ModelType>('test');
   const [style, setStyle] = useState('pop');
   const [duration, setDuration] = useState([60]);
   const [instrumental, setInstrumental] = useState(false);
   const [lyrics, setLyrics] = useState('');
+  const [showAdmin, setShowAdmin] = useState(false);
   
   const { user } = useAuth();
   const { generateMusic, resetGeneration, isGenerating, currentJob } = useMusicGeneration();
@@ -116,6 +120,7 @@ export default function MusicStudio() {
     const request: GenerationRequest = {
       prompt,
       provider,
+      model,
       style,
       duration: duration[0],
       instrumental,
@@ -140,14 +145,38 @@ export default function MusicStudio() {
     }
   };
 
+  // Update model when provider changes
+  const handleProviderChange = (newProvider: 'mureka' | 'suno' | 'test') => {
+    setProvider(newProvider);
+    // Auto-select best model for provider
+    if (newProvider === 'suno') {
+      setModel('suno-v4');
+    } else if (newProvider === 'mureka') {
+      setModel('mureka-v6');
+    } else {
+      setModel('test');
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {showAdmin && <AdminPanel />}
+      
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Wand2 className="h-5 w-5" />
-            Генерация музыки с ИИ
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Wand2 className="h-5 w-5" />
+              Генерация музыки с ИИ
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAdmin(!showAdmin)}
+            >
+              {showAdmin ? 'Скрыть логи' : 'Показать логи'}
+            </Button>
+          </div>
           <CardDescription>
             Создайте уникальную музыку, описав то, что хотите услышать
           </CardDescription>
@@ -194,7 +223,7 @@ export default function MusicStudio() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label>ИИ Провайдер</Label>
-                    <Select value={provider} onValueChange={(value: 'mureka' | 'suno' | 'test') => setProvider(value)}>
+                    <Select value={provider} onValueChange={handleProviderChange}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -202,24 +231,31 @@ export default function MusicStudio() {
                         <SelectItem value="suno">
                           <div className="flex items-center gap-2">
                             <Sparkles className="h-4 w-4" />
-                            Suno AI (10 кредитов)
+                            Suno AI
                           </div>
                         </SelectItem>
                         <SelectItem value="mureka">
                           <div className="flex items-center gap-2">
                             <Music className="h-4 w-4" />
-                            Mureka AI (15 кредитов)
+                            Mureka AI
                           </div>
                         </SelectItem>
                         <SelectItem value="test">
                           <div className="flex items-center gap-2">
                             <Zap className="h-4 w-4" />
-                            Тест (бесплатно)
+                            Тест
                           </div>
                         </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+
+                  <ModelSelector
+                    value={model}
+                    onChange={setModel}
+                    provider={provider}
+                    showDetails={true}
+                  />
 
                   <div className="space-y-2">
                     <Label>Стиль</Label>

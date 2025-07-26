@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 export interface GenerationRequest {
   prompt: string;
   provider: 'suno' | 'mureka' | 'test';
+  model?: string;
   style?: string;
   duration?: number;
   instrumental?: boolean;

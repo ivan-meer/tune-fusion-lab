@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useUserTracks, Track } from '@/hooks/useUserTracks';
 import { useToast } from '@/hooks/use-toast';
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
+import AdminPanel from '@/components/ui/admin-panel';
 import { 
   Music, 
   Play, 
@@ -20,7 +21,8 @@ import {
   List,
   Heart,
   Clock,
-  Sparkles
+  Sparkles,
+  Settings
 } from 'lucide-react';
 
 interface TrackCardProps {
@@ -179,6 +181,7 @@ export default function TrackLibrary() {
   const [filterGenre, setFilterGenre] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
+  const [showAdmin, setShowAdmin] = useState(false);
   
   const { tracks, isLoading, error, loadTracks, deleteTrack, likeTrack } = useUserTracks();
   const { toast } = useToast();
@@ -251,9 +254,11 @@ export default function TrackLibrary() {
   };
 
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <Card>
+  return (
+    <div className="space-y-6">
+      {showAdmin && <AdminPanel />}
+      
+      <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Music className="h-5 w-5" />
@@ -300,6 +305,8 @@ export default function TrackLibrary() {
 
   return (
     <div className="space-y-6">
+      {showAdmin && <AdminPanel />}
+      
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -310,14 +317,24 @@ export default function TrackLibrary() {
                 {tracks.length} треков
               </Badge>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={loadTracks}
-              disabled={isLoading}
-            >
-              {isLoading ? 'Обновление...' : 'Обновить'}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAdmin(!showAdmin)}
+              >
+                <Settings className="h-4 w-4 mr-1" />
+                {showAdmin ? 'Скрыть логи' : 'Показать логи'}
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={loadTracks}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Обновление...' : 'Обновить'}
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
