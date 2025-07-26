@@ -49,27 +49,27 @@ const Index = () => {
   const featuredTracks = [
     {
       id: '1',
-      title: 'Neon Dreams',
-      artist: 'AI Composer',
-      genre: 'Electronic',
+      title: 'Неоновые Сны',
+      artist: 'ИИ Композитор',
+      genre: 'Электронная',
       plays: 1284,
       likes: 89,
       duration: '3:42'
     },
     {
       id: '2', 
-      title: 'Midnight Jazz',
-      artist: 'Neural Orchestra',
-      genre: 'Jazz',
+      title: 'Полночный Джаз',
+      artist: 'Нейронный Оркестр',
+      genre: 'Джаз',
       plays: 956,
       likes: 67,
       duration: '4:15'
     },
     {
       id: '3',
-      title: 'Cosmic Voyage',
-      artist: 'AI Symphonic',
-      genre: 'Ambient',
+      title: 'Космическое Путешествие',
+      artist: 'ИИ Симфонический',
+      genre: 'Эмбиент',
       plays: 2143,
       likes: 156,
       duration: '5:28'
@@ -99,8 +99,8 @@ const Index = () => {
               <div className="p-2 rounded-lg bg-gradient-to-r from-primary to-accent">
                 <Music className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                AI Music Studio
+              <span className="text-xl font-bold gradient-text">
+                МузыкАИ Студия
               </span>
             </motion.div>
 
@@ -111,36 +111,36 @@ const Index = () => {
                     variant={activeSection === 'hero' ? 'default' : 'ghost'}
                     onClick={() => setActiveSection('hero')}
                   >
-                    Home
+                    Главная
                   </Button>
                   <Button
                     variant={activeSection === 'studio' ? 'default' : 'ghost'}
                     onClick={() => setActiveSection('studio')}
                   >
                     <Sparkles className="w-4 h-4 mr-2" />
-                    Studio
+                    Студия
                   </Button>
                   <Button
                     variant={activeSection === 'library' ? 'default' : 'ghost'}
                     onClick={() => setActiveSection('library')}
                   >
                     <Music className="w-4 h-4 mr-2" />
-                    Library
+                    Библиотека
                   </Button>
                   <div className="flex items-center space-x-2 ml-4">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center text-white text-sm font-medium">
                       {user?.username?.[0]?.toUpperCase()}
                     </div>
-                    <span className="text-sm text-muted-foreground">{user?.credits} credits</span>
+                    <span className="text-sm text-muted-foreground">{user?.credits} кредитов</span>
                   </div>
                 </>
               ) : (
                 <>
                   <Button variant="ghost" onClick={() => openAuthModal('login')}>
-                    Sign In
+                    Войти
                   </Button>
                   <Button onClick={() => openAuthModal('register')}>
-                    Get Started
+                    Начать
                   </Button>
                 </>
               )}
@@ -161,22 +161,22 @@ const Index = () => {
               className="space-y-8"
             >
               <div className="space-y-4">
-                <Badge variant="secondary" className="inline-flex items-center space-x-1">
+                <Badge variant="secondary" className="inline-flex items-center space-x-1 pulse-glow">
                   <Sparkles className="w-3 h-3" />
-                  <span>AI-Powered Music Generation</span>
+                  <span>ИИ-Генерация Музыки</span>
                 </Badge>
                 
                 <h1 className="text-5xl lg:text-6xl font-bold leading-tight">
-                  Create{' '}
-                  <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-                    Amazing Music
+                  Создавайте{' '}
+                  <span className="gradient-text">
+                    Невероятную Музыку
                   </span>{' '}
-                  with AI
+                  с помощью ИИ
                 </h1>
                 
                 <p className="text-xl text-muted-foreground leading-relaxed">
-                  Transform your ideas into professional music using cutting-edge AI technology. 
-                  Generate, remix, and create unlimited tracks with Mureka AI and Suno integration.
+                  Превратите свои идеи в профессиональную музыку с помощью передовых ИИ-технологий. 
+                  Создавайте альбомы, треки, ремиксы и каверы. Организуйте свою музыкальную библиотеку.
                 </p>
               </div>
 
@@ -185,28 +185,28 @@ const Index = () => {
                   <>
                     <Button 
                       size="lg" 
-                      className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                      className="bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary"
                       onClick={() => openAuthModal('register')}
                     >
                       <Play className="w-5 h-5 mr-2" />
-                      Start Creating
+                      Начать Создавать
                     </Button>
                     <Button 
                       size="lg" 
                       variant="outline"
                       onClick={() => openAuthModal('login')}
                     >
-                      Sign In
+                      Войти
                     </Button>
                   </>
                 ) : (
                   <Button 
                     size="lg" 
-                    className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                    className="bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary"
                     onClick={() => setActiveSection('studio')}
                   >
                     <Sparkles className="w-5 h-5 mr-2" />
-                    Open Studio
+                    Открыть Студию
                   </Button>
                 )}
               </div>
@@ -215,15 +215,15 @@ const Index = () => {
               <div className="grid grid-cols-3 gap-8 pt-8 border-t border-border/50">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">50K+</div>
-                  <div className="text-sm text-muted-foreground">Tracks Generated</div>
+                  <div className="text-sm text-muted-foreground">Треков Создано</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">15K+</div>
-                  <div className="text-sm text-muted-foreground">Active Users</div>
+                  <div className="text-sm text-muted-foreground">Активных Артистов</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">99%</div>
-                  <div className="text-sm text-muted-foreground">Satisfaction</div>
+                  <div className="text-sm text-muted-foreground">Довольных Пользователей</div>
                 </div>
               </div>
             </motion.div>
@@ -235,40 +235,40 @@ const Index = () => {
               transition={{ duration: 0.8, delay: 0.2 }}
               className="relative"
             >
-              <div className="relative rounded-2xl overflow-hidden glassmorphism p-8">
+              <div className="relative rounded-2xl overflow-hidden glassmorphism p-8 music-visualizer">
                 <img 
                   src={heroImage} 
-                  alt="AI Music Generation" 
+                  alt="ИИ Генерация Музыки" 
                   className="w-full h-auto rounded-lg"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-lg" />
                 
-                {/* Floating Audio Player - TODO: Добавить компонент */}
+                {/* Floating Audio Player */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 1 }}
-                  className="absolute bottom-4 left-4 right-4 p-4 bg-background/80 backdrop-blur-sm rounded-lg"
+                  className="absolute bottom-4 left-4 right-4 p-4 glassmorphism rounded-lg"
                 >
                   <div className="text-center text-sm text-muted-foreground">
-                    Audio Player Coming Soon...
+                    🎵 Аудиоплеер скоро...
                   </div>
                 </motion.div>
               </div>
 
               {/* Floating Elements */}
               <motion.div
-                className="absolute -top-4 -right-4 p-3 rounded-full bg-primary/20 backdrop-blur-sm"
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
+                className="absolute -top-4 -right-4 p-3 rounded-full glassmorphism glow-primary floating-animation"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
               >
                 <Brain className="w-6 h-6 text-primary" />
               </motion.div>
               
               <motion.div
-                className="absolute -bottom-4 -left-4 p-3 rounded-full bg-accent/20 backdrop-blur-sm"
-                animate={{ y: [0, 10, 0] }}
-                transition={{ duration: 2, repeat: Infinity, delay: 1 }}
+                className="absolute -bottom-4 -left-4 p-3 rounded-full glassmorphism glow-accent floating-animation"
+                animate={{ rotate: -360 }}
+                transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
               >
                 <Headphones className="w-6 h-6 text-accent" />
               </motion.div>
@@ -286,9 +286,9 @@ const Index = () => {
             transition={{ duration: 0.8 }}
             className="text-center mb-12"
           >
-            <h2 className="text-3xl font-bold mb-4">Trending AI Creations</h2>
+            <h2 className="text-3xl font-bold mb-4">Популярные ИИ Треки</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Discover the latest tracks generated by our AI community
+              Откройте для себя последние треки, созданные нашим ИИ-сообществом
             </p>
           </motion.div>
 
@@ -346,9 +346,9 @@ const Index = () => {
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
-            <h2 className="text-3xl font-bold mb-4">Powerful AI Music Features</h2>
+            <h2 className="text-3xl font-bold mb-4">Мощные Возможности Музыкального ИИ</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Everything you need to create professional music with artificial intelligence
+              Всё необходимое для создания профессиональной музыки с искусственным интеллектом
             </p>
           </motion.div>
 
@@ -356,33 +356,33 @@ const Index = () => {
             {[
               {
                 icon: Brain,
-                title: 'AI-Powered Generation',
-                description: 'Advanced neural networks create unique compositions based on your prompts'
+                title: 'ИИ-Генерация',
+                description: 'Продвинутые нейронные сети создают уникальные композиции на основе ваших промптов'
               },
               {
                 icon: Zap,
-                title: 'Lightning Fast',
-                description: 'Generate professional-quality tracks in under 30 seconds'
+                title: 'Молниеносная Скорость',
+                description: 'Генерируйте профессиональные треки менее чем за 30 секунд'
               },
               {
                 icon: Users,
-                title: 'Multi-Provider Support',
-                description: 'Integrated with Mureka AI and Suno for the best results'
+                title: 'Множество Провайдеров',
+                description: 'Интеграция с Mureka AI и Suno для лучших результатов'
               },
               {
                 icon: Music,
-                title: 'Multiple Genres',
-                description: 'From electronic to classical, create music in any style'
+                title: 'Все Жанры',
+                description: 'От электронной до классической музыки - создавайте в любом стиле'
               },
               {
                 icon: Headphones,
-                title: 'High-Quality Audio',
-                description: 'Export in multiple formats with studio-grade quality'
+                title: 'Студийное Качество',
+                description: 'Экспорт в различных форматах со студийным качеством звука'
               },
               {
                 icon: Star,
-                title: 'Easy to Use',
-                description: 'Intuitive interface designed for both beginners and pros'
+                title: 'Простота Использования',
+                description: 'Интуитивный интерфейс для новичков и профессионалов'
               }
             ].map((feature, index) => (
               <motion.div
@@ -414,26 +414,26 @@ const Index = () => {
               className="space-y-8"
             >
               <h2 className="text-3xl font-bold">
-                Ready to Create Your First AI Track?
+                Готовы создать свой первый ИИ-трек?
               </h2>
               <p className="text-xl text-muted-foreground">
-                Join thousands of creators making amazing music with AI
+                Присоединяйтесь к тысячам артистов, создающих удивительную музыку с ИИ
               </p>
               <div className="flex flex-wrap justify-center gap-4">
                 <Button 
                   size="lg"
-                  className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                  className="bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary"
                   onClick={() => openAuthModal('register')}
                 >
                   <Sparkles className="w-5 h-5 mr-2" />
-                  Start Free Trial
+                  Начать Бесплатно
                 </Button>
                 <Button 
                   size="lg" 
                   variant="outline"
                   onClick={() => openAuthModal('login')}
                 >
-                  Sign In
+                  Войти
                 </Button>
               </div>
             </motion.div>

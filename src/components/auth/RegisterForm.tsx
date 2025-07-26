@@ -14,17 +14,17 @@ import type { RegisterCredentials } from '@/types/user';
 
 const registerSchema = z.object({
   username: z.string()
-    .min(3, 'Username must be at least 3 characters')
-    .max(20, 'Username must be less than 20 characters')
-    .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
-  email: z.string().email('Invalid email address'),
+    .min(3, 'Имя пользователя должно содержать не менее 3 символов')
+    .max(20, 'Имя пользователя должно содержать менее 20 символов')
+    .regex(/^[a-zA-Z0-9_]+$/, 'Имя пользователя может содержать только буквы, цифры и подчеркивания'),
+  email: z.string().email('Неверный адрес электронной почты'),
   password: z.string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Password must contain at least one uppercase letter, one lowercase letter, and one number'),
+    .min(8, 'Пароль должен содержать не менее 8 символов')
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Пароль должен содержать хотя бы одну заглавную букву, одну строчную букву и одну цифру'),
   confirmPassword: z.string(),
-  acceptTerms: z.boolean().refine(val => val === true, 'You must accept the terms and conditions')
+  acceptTerms: z.boolean().refine(val => val === true, 'Вы должны принять условия использования')
 }).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
+  message: "Пароли не совпадают",
   path: ["confirmPassword"],
 });
 
@@ -61,11 +61,11 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
             <Music className="w-8 h-8 text-primary" />
           </div>
         </div>
-        <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-          Join AI Music Studio
+        <CardTitle className="text-2xl font-bold gradient-text">
+          Присоединяйтесь к МузыкАИ Студии
         </CardTitle>
         <CardDescription>
-          Create your account and start generating amazing music with AI
+          Создайте аккаунт и начните генерировать потрясающую музыку с ИИ
         </CardDescription>
       </CardHeader>
 
@@ -78,10 +78,10 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username">Имя пользователя</Label>
             <Input
               id="username"
-              placeholder="Choose a unique username"
+              placeholder="Выберите уникальное имя пользователя"
               {...register('username')}
               className="transition-all duration-200 focus:ring-2 focus:ring-primary/50"
             />
@@ -91,11 +91,11 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Электронная почта</Label>
             <Input
               id="email"
               type="email"
-              placeholder="Enter your email address"
+              placeholder="Введите ваш адрес электронной почты"
               {...register('email')}
               className="transition-all duration-200 focus:ring-2 focus:ring-primary/50"
             />
@@ -105,12 +105,12 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Пароль</Label>
             <div className="relative">
               <Input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Create a strong password"
+                placeholder="Создайте надежный пароль"
                 {...register('password')}
                 className="pr-10 transition-all duration-200 focus:ring-2 focus:ring-primary/50"
               />
@@ -134,12 +134,12 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <Label htmlFor="confirmPassword">Подтвердите пароль</Label>
             <div className="relative">
               <Input
                 id="confirmPassword"
                 type={showConfirmPassword ? 'text' : 'password'}
-                placeholder="Confirm your password"
+                placeholder="Подтвердите ваш пароль"
                 {...register('confirmPassword')}
                 className="pr-10 transition-all duration-200 focus:ring-2 focus:ring-primary/50"
               />
@@ -171,13 +171,13 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
               htmlFor="acceptTerms" 
               className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              I agree to the{' '}
+              Я согласен с{' '}
               <Button variant="link" className="p-0 h-auto text-primary hover:text-accent">
-                Terms of Service
+                Условиями использования
               </Button>{' '}
-              and{' '}
+              и{' '}
               <Button variant="link" className="p-0 h-auto text-primary hover:text-accent">
-                Privacy Policy
+                Политикой конфиденциальности
               </Button>
             </Label>
           </div>
@@ -187,29 +187,29 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
           <Button
             type="submit"
-            className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all duration-200"
+            className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all duration-200 glow-primary"
             disabled={isLoading}
           >
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating account...
+                Создание аккаунта...
               </>
             ) : (
-              'Create Account'
+              'Создать аккаунт'
             )}
           </Button>
         </form>
 
         <div className="text-center">
           <p className="text-sm text-muted-foreground">
-            Already have an account?{' '}
+            Уже есть аккаунт?{' '}
             <Button
               variant="link"
               className="p-0 h-auto text-primary hover:text-accent"
               onClick={onSwitchToLogin}
             >
-              Sign in here
+              Войти
             </Button>
           </p>
         </div>

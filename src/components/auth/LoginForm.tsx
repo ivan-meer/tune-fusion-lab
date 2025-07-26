@@ -12,8 +12,8 @@ import { useAuthStore } from '@/stores/authStore';
 import type { LoginCredentials } from '@/types/user';
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  email: z.string().email('Неверный адрес электронной почты'),
+  password: z.string().min(6, 'Пароль должен содержать не менее 6 символов'),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -51,11 +51,11 @@ export default function LoginForm({ onSwitchToRegister }: LoginFormProps) {
             <Music className="w-8 h-8 text-primary" />
           </div>
         </div>
-        <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-          Welcome Back
+        <CardTitle className="text-2xl font-bold gradient-text">
+          Добро пожаловать!
         </CardTitle>
         <CardDescription>
-          Sign in to continue creating amazing AI music
+          Войдите, чтобы продолжить создавать потрясающую ИИ-музыку
         </CardDescription>
       </CardHeader>
 
@@ -67,18 +67,18 @@ export default function LoginForm({ onSwitchToRegister }: LoginFormProps) {
         )}
 
         <div className="p-4 rounded-lg bg-muted/50 border border-muted">
-          <p className="text-sm text-muted-foreground mb-2">Demo Account:</p>
+          <p className="text-sm text-muted-foreground mb-2">Демо аккаунт:</p>
           <p className="text-xs text-muted-foreground">Email: demo@example.com</p>
-          <p className="text-xs text-muted-foreground">Password: demo123</p>
+          <p className="text-xs text-muted-foreground">Пароль: demo123</p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Электронная почта</Label>
             <Input
               id="email"
               type="email"
-              placeholder="Enter your email"
+              placeholder="Введите вашу почту"
               {...register('email')}
               className="transition-all duration-200 focus:ring-2 focus:ring-primary/50"
             />
@@ -88,12 +88,12 @@ export default function LoginForm({ onSwitchToRegister }: LoginFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Пароль</Label>
             <div className="relative">
               <Input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Enter your password"
+                placeholder="Введите ваш пароль"
                 {...register('password')}
                 className="pr-10 transition-all duration-200 focus:ring-2 focus:ring-primary/50"
               />
@@ -118,29 +118,29 @@ export default function LoginForm({ onSwitchToRegister }: LoginFormProps) {
 
           <Button
             type="submit"
-            className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all duration-200"
+            className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all duration-200 glow-primary"
             disabled={isLoading}
           >
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Signing in...
+                Вход...
               </>
             ) : (
-              'Sign In'
+              'Войти'
             )}
           </Button>
         </form>
 
         <div className="text-center">
           <p className="text-sm text-muted-foreground">
-            Don't have an account?{' '}
+            Нет аккаунта?{' '}
             <Button
               variant="link"
               className="p-0 h-auto text-primary hover:text-accent"
               onClick={onSwitchToRegister}
             >
-              Sign up here
+              Регистрация
             </Button>
           </p>
         </div>
