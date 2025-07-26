@@ -287,7 +287,7 @@ async function generateWithSuno(request: GenerationRequest) {
   console.log('Request payload:', JSON.stringify(generateRequest, null, 2));
 
   // Try the working endpoint from the successful generation
-  const response = await fetch('https://api.sunoapi.net/api/v1/gateway/generate/music', {
+  const response = await fetch('https://api.sunoapi.org/api/v1/music/generate', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${sunoApiKey}`,
@@ -322,7 +322,7 @@ async function generateWithSuno(request: GenerationRequest) {
   while (attempts < maxAttempts) {
     await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds between polls
     
-    const statusResponse = await fetch(`https://api.sunoapi.net/api/v1/gateway/query?ids=${taskId}`, {
+    const statusResponse = await fetch(`https://api.sunoapi.org/api/v1/music/details?taskId=${taskId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
@@ -337,13 +337,13 @@ async function generateWithSuno(request: GenerationRequest) {
       if (statusData.success && statusData.data && statusData.data.length > 0) {
         const track = statusData.data[0];
         
-        if (track.status === 'complete' && track.audio_url) {
+        if (track.status === 'completed' && track.audio_url) {
           generationResult = track;
           break;
         }
         
-        if (track.status === 'error') {
-          throw new Error(`Suno generation failed: ${track.meta_data || 'Unknown error'}`);
+        if (track.status === 'failed') {
+          throw new Error(`Suno generation failed: ${track.error_message || 'Unknown error'}`);
         }
       }
     }
