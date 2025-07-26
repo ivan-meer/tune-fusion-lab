@@ -10,7 +10,7 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useMusicGeneration, GenerationRequest } from '@/hooks/useMusicGeneration';
-import { Wand2, Sparkles, Music, Play, Download, Share } from 'lucide-react';
+import { Wand2, Sparkles, Music, Play, Download, Share, Shuffle, Zap } from 'lucide-react';
 
 interface AudioPlayerProps {
   src: string;
@@ -53,6 +53,45 @@ export default function MusicStudio() {
   const { user } = useAuth();
   const { generateMusic, resetGeneration, isGenerating, currentJob } = useMusicGeneration();
 
+  // Массивы для генерации случайных промптов
+  const moods = ['энергичная', 'меланхоличная', 'романтичная', 'драйвовая', 'спокойная', 'мистическая', 'веселая', 'мечтательная'];
+  const instruments = ['синтезаторы', 'гитара', 'пианино', 'скрипка', 'саксофон', 'барабаны', 'бас-гитара', 'флейта'];
+  const vocals = ['мужской вокал', 'женский вокал', 'хор', 'рэп', 'фальцет', 'низкий бас'];
+  const themes = ['о любви', 'о мечтах', 'о приключениях', 'о дружбе', 'о свободе', 'о природе', 'о городе', 'о будущем'];
+  const tempos = ['быстрый', 'медленный', 'средний', 'переменчивый'];
+
+  const generateRandomPrompt = () => {
+    const mood = moods[Math.floor(Math.random() * moods.length)];
+    const instrument = instruments[Math.floor(Math.random() * instruments.length)];
+    const vocal = vocals[Math.floor(Math.random() * vocals.length)];
+    const theme = themes[Math.floor(Math.random() * themes.length)];
+    const tempo = tempos[Math.floor(Math.random() * tempos.length)];
+    
+    const randomPrompt = `${mood} песня ${theme} с ${instrument} и ${vocal}, ${tempo} темп`;
+    setPrompt(randomPrompt);
+  };
+
+  const enhancePrompt = () => {
+    if (!prompt.trim()) {
+      generateRandomPrompt();
+      return;
+    }
+    
+    const enhancements = [
+      'с богатой аранжировкой',
+      'с профессиональным звучанием',
+      'в студийном качестве',
+      'с эмоциональной подачей',
+      'с современным продакшеном',
+      'с динамичными переходами',
+      'с запоминающимся припевом',
+      'с глубоким басом'
+    ];
+    
+    const enhancement = enhancements[Math.floor(Math.random() * enhancements.length)];
+    setPrompt(prev => `${prev}, ${enhancement}`);
+  };
+
   const handleGenerate = async () => {
     if (!prompt.trim()) {
       return;
@@ -94,7 +133,31 @@ export default function MusicStudio() {
           {!currentJob ? (
             <>
               <div className="space-y-2">
-                <Label htmlFor="prompt">Описание трека</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="prompt">Описание трека</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={generateRandomPrompt}
+                      className="text-xs"
+                    >
+                      <Shuffle className="h-3 w-3 mr-1" />
+                      Случайный
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={enhancePrompt}
+                      className="text-xs"
+                    >
+                      <Zap className="h-3 w-3 mr-1" />
+                      Улучшить
+                    </Button>
+                  </div>
+                </div>
                 <Textarea
                   id="prompt"
                   placeholder="Например: Энергичная поп-песня о лете с яркими синтезаторами и женским вокалом"
