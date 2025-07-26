@@ -14,25 +14,33 @@ serve(async (req) => {
   }
 
   try {
-    // Use hardcoded values for consistency
+    console.log('Getting generation status...');
+    
+    // Use service role key like in generate-music function
     const supabaseUrl = 'https://psqxgksushbaoisbbdir.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzcXhna3N1c2hiYW9pc2JiZGlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc4ODQzNTEsImV4cCI6MjA2MzQ2MDM1MX0.lhdQtxSv5syaYA59u7XFY3Ar5BesVJkC2tVWlO7CmwE';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseServiceKey) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY not configured');
+      throw new Error('Server configuration error');
+    }
     
     const supabaseClient = createClient(
       supabaseUrl,
-      supabaseKey,
+      supabaseServiceKey,
       {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
+        auth: { autoRefreshToken: false, persistSession: false }
       }
     );
 
-    // Get user from JWT token
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseClient.auth.getUser();
+    // Verify JWT token
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new Error('No valid authorization header');
+    }
+
+    const jwt = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(jwt);
 
     if (userError || !user) {
       console.error('Authorization failed in get-generation-status:', userError);
