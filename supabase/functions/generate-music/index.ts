@@ -75,7 +75,7 @@ serve(async (req) => {
       .insert({
         user_id: user.id,
         provider,
-        model: model || 'default',
+        model: model || (provider === 'test' ? 'test' : 'chirp-v4'),
         status: 'pending',
         progress: 0,
         request_params: {
@@ -293,8 +293,8 @@ async function generateWithSuno(request: GenerationRequest) {
   
   console.log('Request payload:', JSON.stringify(generateRequest, null, 2));
 
-  // Try the working endpoint from the successful generation
-  const response = await fetch('https://api.sunoapi.org/api/v1/music/generate', {
+  // Use the correct Suno API endpoint
+  const response = await fetch('https://api.sunoapi.org/api/v1/generate', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${sunoApiKey}`,
@@ -329,7 +329,7 @@ async function generateWithSuno(request: GenerationRequest) {
   while (attempts < maxAttempts) {
     await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds between polls
     
-    const statusResponse = await fetch(`https://api.sunoapi.org/api/v1/music/details?taskId=${taskId}`, {
+    const statusResponse = await fetch(`https://api.sunoapi.org/api/v1/get?ids=${taskId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
