@@ -380,6 +380,7 @@ async function generateWithSuno(
     prompt: prompt,
     title: prompt.slice(0, 80),
     model: model,
+    make_instrumental: instrumental, // КРИТИЧЕСКИ ВАЖНО - НЕ УДАЛЯТЬ!
     callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
   };
 
@@ -388,9 +389,10 @@ async function generateWithSuno(
     generateRequest.lyrics = finalLyrics;
   }
   
-  console.log('=== SIMPLIFIED REQUEST PAYLOAD ===');
+  console.log('=== FIXED REQUEST PAYLOAD ===');
   console.log(JSON.stringify(generateRequest, null, 2));
   console.log('Parameters included:', Object.keys(generateRequest));
+  console.log('make_instrumental type:', typeof generateRequest.make_instrumental, 'value:', generateRequest.make_instrumental);
   console.log('Lyrics present:', !!generateRequest.lyrics);
 
   const result = await retryApiCall(async () => {
