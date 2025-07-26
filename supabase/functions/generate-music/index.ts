@@ -155,15 +155,15 @@ async function processGeneration(
     
     if (provider === 'suno') {
       console.log('Calling generateWithSuno...');
-      result = await generateWithSuno({
+      result = await generateWithSuno(
+        jobId,
         prompt,
-        provider,
-        model,
         style,
         duration,
         instrumental,
-        lyrics
-      });
+        lyrics,
+        supabaseAdmin
+      );
     } else if (provider === 'mureka') {
       console.log('Calling generateWithMureka...');
       result = await generateWithMureka(prompt, style, duration, instrumental, lyrics);
@@ -241,9 +241,17 @@ async function processGeneration(
   }
 }
 
-async function generateWithSuno(request: GenerationRequest) {
+async function generateWithSuno(
+  jobId: string,
+  prompt: string,
+  style: string,
+  duration: number,
+  instrumental: boolean,
+  lyrics: string | undefined,
+  supabaseAdmin: any
+) {
   console.log('=== Starting generateWithSuno ===');
-  console.log('Request object:', JSON.stringify(request, null, 2));
+  console.log('Params:', { prompt, style, duration, instrumental, lyrics });
   
   const sunoApiKey = Deno.env.get('SUNO_API_KEY');
   console.log('Suno API key present:', !!sunoApiKey);
@@ -253,23 +261,38 @@ async function generateWithSuno(request: GenerationRequest) {
     throw new Error('SUNO_API_KEY not configured');
   }
 
+  // For vocal tracks, generate lyrics from prompt if not provided
+  let finalLyrics = lyrics;
+  if (!instrumental && !lyrics) {
+    console.log('Generating lyrics from prompt...');
+    
+    // Update progress
+    await supabaseAdmin
+      .from('generation_jobs')
+      .update({ status: 'processing', progress: 30 })
+      .eq('id', jobId);
+    
+    finalLyrics = await generateLyricsFromPrompt(prompt, style);
+    console.log('Generated lyrics:', finalLyrics);
+  }
+
   console.log('Generating with Suno AI...');
 
   // Use correct Suno API request format according to documentation
   const generateRequest = {
-    prompt: request.prompt, // Always use prompt as style/performance description
-    customMode: !request.instrumental, // Use custom mode for vocal tracks with lyrics
+    prompt: prompt, // Always use prompt as style/performance description
+    customMode: !instrumental, // Use custom mode for vocal tracks with lyrics
     model: "V4_5", // Updated to V4_5 for better quality
-    make_instrumental: request.instrumental || false,
-    tags: request.style || "pop", // Style becomes tags
-    title: request.prompt.slice(0, 80),
+    make_instrumental: instrumental || false,
+    tags: style || "pop", // Style becomes tags
+    title: prompt.slice(0, 80),
     wait_audio: false,
     callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
   };
 
   // Add lyrics only for vocal tracks
-  if (!request.instrumental && request.lyrics) {
-    generateRequest.lyrics = request.lyrics;
+  if (!instrumental && finalLyrics) {
+    generateRequest.lyrics = finalLyrics;
   }
   
   console.log('Request payload:', JSON.stringify(generateRequest, null, 2));
@@ -338,12 +361,62 @@ async function generateWithSuno(request: GenerationRequest) {
     }
     
     console.log('Successfully extracted task ID:', taskId);
-    return await pollSunoGeneration(taskId);
+    const result = await pollSunoGeneration(taskId);
+    
+    // Include generated lyrics in result
+    if (finalLyrics && !result.lyrics) {
+      result.lyrics = finalLyrics;
+    }
+    
+    return result;
     
   } else {
     console.error('Suno API returned error:', data);
     throw new Error(`Suno API error: ${data.error || data.message || data.msg || 'Unknown error'}`);
   }
+}
+
+async function generateLyricsFromPrompt(prompt: string, style: string): Promise<string> {
+  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!openaiApiKey) {
+    throw new Error('OPENAI_API_KEY not configured');
+  }
+
+  console.log('Generating lyrics with OpenAI...');
+  
+  const systemPrompt = `Ты профессиональный автор песен. Создай текст песни на русском языке на основе описания пользователя. 
+Структура должна включать куплеты, припевы и при необходимости бридж. 
+Используй стандартные теги: [Verse], [Chorus], [Bridge], [Outro].
+Стиль: ${style}
+Создай эмоциональный и запоминающийся текст.`;
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openaiApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Создай текст песни по описанию: ${prompt}` }
+      ],
+      max_tokens: 1000,
+      temperature: 0.8
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI API error: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  const generatedLyrics = data.choices[0].message.content;
+  
+  console.log('Generated lyrics from OpenAI:', generatedLyrics);
+  return generatedLyrics;
 }
 
 async function pollSunoGeneration(taskId: string) {
