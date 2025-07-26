@@ -257,15 +257,20 @@ async function generateWithSuno(request: GenerationRequest) {
 
   // Use correct Suno API request format according to documentation
   const generateRequest = {
-    prompt: request.instrumental ? request.prompt : request.lyrics || request.prompt, // Use lyrics as prompt if provided and not instrumental
-    customMode: true, // Required parameter according to API docs
+    prompt: request.prompt, // Always use prompt as style/performance description
+    customMode: !request.instrumental, // Use custom mode for vocal tracks with lyrics
     model: "V4_5", // Updated to V4_5 for better quality
-    make_instrumental: request.instrumental || false, // Correct parameter name
+    make_instrumental: request.instrumental || false,
     tags: request.style || "pop", // Style becomes tags
     title: request.prompt.slice(0, 80),
     wait_audio: false,
     callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
   };
+
+  // Add lyrics only for vocal tracks
+  if (!request.instrumental && request.lyrics) {
+    generateRequest.lyrics = request.lyrics;
+  }
   
   console.log('Request payload:', JSON.stringify(generateRequest, null, 2));
 
