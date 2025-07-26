@@ -55,7 +55,36 @@ export function useMusicGeneration() {
         throw new Error(data?.error || 'Music generation failed');
       }
 
-      // Start polling for status since generation runs in background
+      // Check if we have completed job data immediately
+      if (data.job && data.job.status === 'completed' && data.job.tracks) {
+        console.log('Generation completed immediately');
+        const track = Array.isArray(data.job.tracks) ? data.job.tracks[0] : data.job.tracks;
+        
+        setCurrentJob({
+          id: data.job.id,
+          status: 'completed',
+          progress: 100,
+          track: {
+            id: track.id,
+            title: track.title,
+            file_url: track.file_url,
+            artwork_url: track.artwork_url,
+            duration: track.duration,
+            created_at: track.created_at
+          }
+        });
+        
+        setIsGenerating(false);
+        
+        toast({
+          title: "Генерация завершена!",
+          description: `Трек "${track.title}" готов к прослушиванию`
+        });
+        
+        return data;
+      }
+
+      // If generation is still in progress, start polling
       const jobId = data.jobId;
       setCurrentJob({
         id: jobId,
