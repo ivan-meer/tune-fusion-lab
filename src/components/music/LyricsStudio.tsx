@@ -159,7 +159,7 @@ export default function LyricsStudio() {
                   <SelectValue placeholder="Любая" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Любая</SelectItem>
+                  <SelectItem value="any">Любая</SelectItem>
                   <SelectItem value="verse-chorus-verse-chorus-bridge-chorus">Классическая</SelectItem>
                   <SelectItem value="verse-chorus-verse-chorus">Простая</SelectItem>
                   <SelectItem value="intro-verse-chorus-verse-chorus-outro">Полная</SelectItem>
