@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Music, Zap, Star, Clock, DollarSign } from 'lucide-react';
 
-export type ModelType = 'V3_5' | 'V4' | 'V4_5' | 'mureka-v6' | 'mureka-o1' | 'test';
+export type ModelType = 'chirp-v4' | 'chirp-v3.5' | 'chirp-v3' | 'mureka-v6' | 'test';
 
 interface ModelInfo {
   id: ModelType;
@@ -20,21 +20,21 @@ interface ModelInfo {
 
 const modelConfigs: ModelInfo[] = [
   {
-    id: 'V4',
-    name: 'Suno V4',
+    id: 'chirp-v4',
+    name: 'Chirp V4',
     provider: 'Suno AI',
-    description: 'Продвинутая модель с улучшенным качеством звука',
-    features: ['Высокое качество', 'Лучшая музыкальность', 'Четкий вокал'],
+    description: 'Новейшая модель Suno с высочайшим качеством звука',
+    features: ['Максимальное качество', 'Лучшая музыкальность', 'Четкий вокал'],
     cost: 10,
     duration: 'До 4 минут',
     quality: 5,
     icon: Sparkles
   },
   {
-    id: 'V3_5',
-    name: 'Suno V3.5',
+    id: 'chirp-v3.5',
+    name: 'Chirp V3.5',
     provider: 'Suno AI',
-    description: 'Сбалансированная модель для создания качественной музыки',
+    description: 'Стабильная модель с отличным качеством',
     features: ['Быстрая генерация', 'Хорошее качество звука', 'Стабильность'],
     cost: 8,
     duration: 'До 4 минут',
@@ -42,14 +42,14 @@ const modelConfigs: ModelInfo[] = [
     icon: Sparkles
   },
   {
-    id: 'V4_5',
-    name: 'Suno V4.5',
+    id: 'chirp-v3',
+    name: 'Chirp V3',
     provider: 'Suno AI',
-    description: 'Новейшая модель с поддержкой длинных треков',
-    features: ['Максимальное качество', 'Длинные композиции', 'Профессиональное звучание'],
-    cost: 15,
-    duration: 'До 8 минут',
-    quality: 5,
+    description: 'Базовая модель Suno для быстрой генерации',
+    features: ['Быстрая генерация', 'Экономичная', 'Надежная'],
+    cost: 5,
+    duration: 'До 2 минут',
+    quality: 3,
     icon: Music
   },
   {
@@ -62,17 +62,6 @@ const modelConfigs: ModelInfo[] = [
     duration: '3-5 мин',
     quality: 5,
     icon: Music
-  },
-  {
-    id: 'mureka-o1',
-    name: 'Mureka O1',
-    provider: 'Mureka AI',
-    description: 'Экспериментальная модель с продвинутым анализом запроса',
-    features: ['Анализ запроса', 'Творческий подход', 'Уникальность'],
-    cost: 25,
-    duration: '4-6 мин',
-    quality: 4,
-    icon: Star
   },
   {
     id: 'test',
@@ -97,7 +86,7 @@ interface ModelSelectorProps {
 export default function ModelSelector({ value, onChange, provider = 'all', showDetails = true }: ModelSelectorProps) {
   const availableModels = modelConfigs.filter(model => {
     if (provider === 'all') return true;
-    if (provider === 'suno') return model.id.startsWith('V');
+    if (provider === 'suno') return model.id.startsWith('chirp-');
     if (provider === 'mureka') return model.id.startsWith('mureka-');
     if (provider === 'test') return model.id === 'test';
     return true;

@@ -150,7 +150,7 @@ export default function MusicStudio() {
     setProvider(newProvider);
     // Auto-select best model for provider
     if (newProvider === 'suno') {
-      setModel('V4');
+      setModel('chirp-v4');
     } else if (newProvider === 'mureka') {
       setModel('mureka-v6');
     } else {
