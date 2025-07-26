@@ -290,7 +290,7 @@ async function generateWithSuno(request: GenerationRequest) {
   const generateRequest = {
     prompt: request.lyrics ? `${request.prompt}. Lyrics: ${request.lyrics}` : request.prompt,
     customMode: true, // Required parameter according to API docs
-    model: request.model || 'chirp-v4',
+    mv: "chirp-v3-5", // Correct model format for Suno API
     make_instrumental: request.instrumental,
     tags: request.style,
     title: request.prompt.slice(0, 80),
