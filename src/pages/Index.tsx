@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,12 +12,26 @@ import {
   TrendingUp,
   Users,
   Zap,
-  Heart
+  Heart,
+  Cpu,
+  Waves,
+  Mic,
+  Download,
+  Share,
+  ArrowRight,
+  ChevronDown
 } from 'lucide-react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import Header from '@/components/layout/Header';
 import MusicStudio from '@/components/music/MusicStudio';
 import MusicAidPro from '@/components/music/MusicAidPro';
+import { 
+  ParallaxScroll, 
+  CountUp, 
+  StaggeredReveal, 
+  MagneticHover, 
+  NeuralNetworkBg 
+} from '@/components/ui/scroll-animations';
 import heroImage from '@/assets/hero-music-ai.jpg';
 
 const Index = () => {
@@ -75,294 +89,609 @@ const Index = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      <Header />
+  const { scrollY } = useScroll();
+  const heroY = useTransform(scrollY, [0, 500], [0, -100]);
+  const heroOpacity = useTransform(scrollY, [0, 300], [1, 0.8]);
 
-      {/* Hero Section */}
-      <section className="relative py-20 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Text Content */}
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              className="space-y-8"
-            >
-              <div className="space-y-4">
-                <Badge variant="secondary" className="inline-flex items-center space-x-1 pulse-glow">
-                  <Sparkles className="w-3 h-3" />
-                  <span>ИИ-Генерация Музыки</span>
-                </Badge>
-                
-                <h1 className="text-5xl lg:text-6xl font-bold leading-tight">
+  return (
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Neural Network Background */}
+      <NeuralNetworkBg className="fixed inset-0 z-0" />
+      
+      {/* Main Background */}
+      <div className="fixed inset-0 z-0 bg-gradient-to-br from-background via-background to-muted/10" 
+           style={{ background: 'var(--gradient-bg)' }} />
+      
+      <div className="relative z-10">
+        <Header />
+
+        {/* Hero Section */}
+        <motion.section 
+          style={{ y: heroY, opacity: heroOpacity }}
+          className="relative min-h-screen flex items-center justify-center overflow-hidden"
+        >
+          {/* Animated Grid Background */}
+          <div className="absolute inset-0 opacity-20">
+            <div className="absolute inset-0" 
+                 style={{
+                   backgroundImage: `
+                     linear-gradient(hsl(var(--border)) 1px, transparent 1px),
+                     linear-gradient(90deg, hsl(var(--border)) 1px, transparent 1px)
+                   `,
+                   backgroundSize: '50px 50px'
+                 }}>
+            </div>
+          </div>
+
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div className="text-center space-y-12">
+              
+              {/* AI Badge */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.8 }}
+              >
+                <MagneticHover>
+                  <Badge 
+                    variant="secondary" 
+                    className="inline-flex items-center space-x-2 px-6 py-3 text-sm glassmorphism-strong pulse-glow"
+                  >
+                    <Brain className="w-4 h-4" />
+                    <span>Powered by Neural AI</span>
+                    <Sparkles className="w-4 h-4" />
+                  </Badge>
+                </MagneticHover>
+              </motion.div>
+              
+              {/* Main Heading */}
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 1, delay: 0.2 }}
+                className="space-y-6"
+              >
+                <h1 className="text-6xl lg:text-8xl font-bold leading-tight tracking-tight">
                   Создавайте{' '}
-                  <span className="gradient-text">
-                    Невероятную Музыку
-                  </span>{' '}
-                  с помощью ИИ
+                  <span className="gradient-text block lg:inline">
+                    Будущее Музыки
+                  </span>
                 </h1>
                 
-                <p className="text-xl text-muted-foreground leading-relaxed">
-                  Превратите свои идеи в профессиональную музыку с помощью передовых ИИ-технологий. 
-                  Создавайте альбомы, треки, ремиксы и каверы. Организуйте свою музыкальную библиотеку.
+                <p className="text-xl lg:text-2xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
+                  Революционная платформа для создания профессиональной музыки с помощью 
+                  искусственного интеллекта. От идеи до готового трека за секунды.
                 </p>
-              </div>
+              </motion.div>
 
-              <div className="flex flex-wrap gap-4">
-                <Button 
-                  size="lg" 
-                  className="bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary"
-                  asChild
-                >
-                  <a href="/auth">
-                    <Play className="w-5 h-5 mr-2" />
-                    Начать Создавать
-                  </a>
-                </Button>
+              {/* CTA Buttons */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.6 }}
+                className="flex flex-col sm:flex-row gap-6 justify-center items-center"
+              >
+                <MagneticHover>
+                  <Button 
+                    size="lg" 
+                    className="px-12 py-6 text-lg bg-gradient-to-r from-primary to-primary-variant hover:opacity-90 glow-intense group relative overflow-hidden"
+                    asChild
+                  >
+                    <a href="/auth" className="flex items-center">
+                      <Play className="w-6 h-6 mr-3 group-hover:scale-110 transition-transform" />
+                      Создать Первый Трек
+                      <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </a>
+                  </Button>
+                </MagneticHover>
+                
                 <Button 
                   size="lg" 
                   variant="outline"
+                  className="px-8 py-6 text-lg glassmorphism border-primary/30 hover-glow"
                   asChild
                 >
-                  <a href="/auth">
-                    Войти
+                  <a href="#demo">
+                    <Waves className="w-5 h-5 mr-2" />
+                    Смотреть Демо
                   </a>
                 </Button>
-              </div>
+              </motion.div>
 
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-8 pt-8 border-t border-border/50">
+              {/* Stats Counter */}
+              <motion.div
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.8 }}
+                className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-16 max-w-4xl mx-auto"
+              >
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">50K+</div>
-                  <div className="text-sm text-muted-foreground">Треков Создано</div>
+                  <div className="text-4xl lg:text-5xl font-bold gradient-text mb-2">
+                    <CountUp end={50} suffix="K+" />
+                  </div>
+                  <div className="text-muted-foreground">Треков Создано</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">15K+</div>
-                  <div className="text-sm text-muted-foreground">Активных Артистов</div>
+                  <div className="text-4xl lg:text-5xl font-bold gradient-text mb-2">
+                    <CountUp end={15} suffix="K+" />
+                  </div>
+                  <div className="text-muted-foreground">Активных Артистов</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">99%</div>
-                  <div className="text-sm text-muted-foreground">Довольных Пользователей</div>
+                  <div className="text-4xl lg:text-5xl font-bold gradient-text mb-2">
+                    <CountUp end={99} suffix="%" />
+                  </div>
+                  <div className="text-muted-foreground">Довольных Пользователей</div>
                 </div>
-              </div>
+              </motion.div>
+
+              {/* Scroll Indicator */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.5 }}
+                className="absolute bottom-8 left-1/2 transform -translate-x-1/2"
+              >
+                <motion.div
+                  animate={{ y: [0, 10, 0] }}
+                  transition={{ repeat: Infinity, duration: 2 }}
+                  className="flex flex-col items-center text-muted-foreground"
+                >
+                  <span className="text-sm mb-2">Прокрутите вниз</span>
+                  <ChevronDown className="w-6 h-6" />
+                </motion.div>
+              </motion.div>
+            </div>
+          </div>
+
+          {/* Floating AI Elements */}
+          <div className="absolute inset-0 pointer-events-none">
+            <motion.div
+              className="absolute top-1/4 left-20 p-4 rounded-full glassmorphism glow-primary"
+              animate={{ 
+                y: [0, -20, 0],
+                rotate: [0, 180, 360] 
+              }}
+              transition={{ 
+                duration: 8, 
+                repeat: Infinity, 
+                ease: "easeInOut" 
+              }}
+            >
+              <Cpu className="w-8 h-8 text-primary" />
+            </motion.div>
+            
+            <motion.div
+              className="absolute top-1/3 right-20 p-4 rounded-full glassmorphism glow-accent"
+              animate={{ 
+                y: [0, 15, 0],
+                rotate: [0, -180, -360] 
+              }}
+              transition={{ 
+                duration: 6, 
+                repeat: Infinity, 
+                ease: "easeInOut",
+                delay: 1
+              }}
+            >
+              <Mic className="w-8 h-8 text-accent" />
             </motion.div>
 
-            {/* Hero Image */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="relative"
+              className="absolute bottom-1/3 left-1/4 p-3 rounded-full glassmorphism glow-soft"
+              animate={{ 
+                scale: [1, 1.2, 1],
+                opacity: [0.7, 1, 0.7]
+              }}
+              transition={{ 
+                duration: 4, 
+                repeat: Infinity, 
+                ease: "easeInOut",
+                delay: 2
+              }}
             >
-              <div className="relative rounded-2xl overflow-hidden glassmorphism p-8 music-visualizer">
-                <img 
-                  src={heroImage} 
-                  alt="ИИ Генерация Музыки" 
-                  className="w-full h-auto rounded-lg"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-lg" />
-                
-                {/* Floating Audio Player */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1 }}
-                  className="absolute bottom-4 left-4 right-4 p-4 glassmorphism rounded-lg"
-                >
-                  <div className="text-center text-sm text-muted-foreground">
-                    🎵 Аудиоплеер скоро...
-                  </div>
-                </motion.div>
-              </div>
-
-              {/* Floating Elements */}
-              <motion.div
-                className="absolute -top-4 -right-4 p-3 rounded-full glassmorphism glow-primary floating-animation"
-                animate={{ rotate: 360 }}
-                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-              >
-                <Brain className="w-6 h-6 text-primary" />
-              </motion.div>
-              
-              <motion.div
-                className="absolute -bottom-4 -left-4 p-3 rounded-full glassmorphism glow-accent floating-animation"
-                animate={{ rotate: -360 }}
-                transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
-              >
-                <Headphones className="w-6 h-6 text-accent" />
-              </motion.div>
+              <Headphones className="w-6 h-6 text-primary" />
             </motion.div>
           </div>
-        </div>
-      </section>
+        </motion.section>
 
-      {/* Featured Tracks */}
-      <section className="py-20 bg-muted/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl font-bold mb-4">Популярные ИИ Треки</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Откройте для себя последние треки, созданные нашим ИИ-сообществом
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {featuredTracks.map((track, index) => (
-              <motion.div
-                key={track.id}
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
+        {/* Featured Tracks Section */}
+        <ParallaxScroll speed={0.3} className="py-32 relative">
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-muted/5 to-transparent" />
+          
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+            <motion.div
+              initial={{ opacity: 0, y: 60 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1, ease: [0.25, 0.46, 0.45, 0.94] }}
+              viewport={{ once: true }}
+              className="text-center mb-20"
+            >
+              <Badge 
+                variant="secondary" 
+                className="mb-6 glassmorphism-strong neural-pulse"
               >
-                <Card className="glassmorphism hover:scale-105 transition-all duration-300 group cursor-pointer">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <Badge variant="secondary">{track.genre}</Badge>
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Play className="w-4 h-4" />
-                      </Button>
-                    </div>
+                <Music className="w-4 h-4 mr-2" />
+                Trending AI Tracks
+              </Badge>
+              
+              <h2 className="text-4xl lg:text-6xl font-bold mb-6">
+                Популярные{' '}
+                <span className="gradient-text-accent">ИИ Треки</span>
+              </h2>
+              
+              <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+                Откройте для себя потрясающие композиции, созданные нашим ИИ-сообществом. 
+                Каждый трек - это уникальное произведение искусства.
+              </p>
+            </motion.div>
+
+            <StaggeredReveal className="grid md:grid-cols-3 gap-8" delay={0.15}>
+              {featuredTracks.map((track, index) => (
+                <MagneticHover key={track.id} strength={15}>
+                  <Card className="glassmorphism-strong hover-glow group cursor-pointer relative overflow-hidden border-border/10">
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     
-                    <h3 className="font-semibold mb-2">{track.title}</h3>
-                    <p className="text-sm text-muted-foreground mb-4">{track.artist}</p>
-                    
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <div className="flex items-center space-x-3">
-                        <span className="flex items-center">
-                          <TrendingUp className="w-3 h-3 mr-1" />
-                          {track.plays}
-                        </span>
-                        <span className="flex items-center">
-                          <Heart className="w-3 h-3 mr-1" />
-                          {track.likes}
+                    <CardContent className="p-8 relative z-10">
+                      {/* Header with genre and play button */}
+                      <div className="flex items-center justify-between mb-6">
+                        <Badge 
+                          variant="secondary" 
+                          className="glassmorphism text-xs px-3 py-1"
+                        >
+                          {track.genre}
+                        </Badge>
+                        <motion.div
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <Button 
+                            size="sm" 
+                            className="opacity-0 group-hover:opacity-100 transition-all duration-300 bg-primary/20 hover:bg-primary/30 backdrop-blur-sm"
+                          >
+                            <Play className="w-4 h-4" />
+                          </Button>
+                        </motion.div>
+                      </div>
+                      
+                      {/* Track info */}
+                      <div className="space-y-3 mb-6">
+                        <h3 className="text-xl font-bold group-hover:gradient-text transition-all duration-300">
+                          {track.title}
+                        </h3>
+                        <p className="text-muted-foreground font-medium">
+                          {track.artist}
+                        </p>
+                      </div>
+                      
+                      {/* Stats */}
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center space-x-4">
+                          <span className="flex items-center text-muted-foreground hover:text-primary transition-colors">
+                            <TrendingUp className="w-4 h-4 mr-1" />
+                            {track.plays.toLocaleString()}
+                          </span>
+                          <span className="flex items-center text-muted-foreground hover:text-accent transition-colors">
+                            <Heart className="w-4 h-4 mr-1" />
+                            {track.likes}
+                          </span>
+                        </div>
+                        <span className="text-muted-foreground font-mono">
+                          {track.duration}
                         </span>
                       </div>
-                      <span>{track.duration}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
+
+                      {/* Waveform visualization placeholder */}
+                      <div className="mt-6 h-12 bg-muted/20 rounded-lg flex items-center justify-center overflow-hidden relative">
+                        <div className="flex items-end space-x-1 opacity-50 group-hover:opacity-100 transition-opacity duration-500">
+                          {Array.from({ length: 20 }).map((_, i) => (
+                            <motion.div
+                              key={i}
+                              className="w-1 bg-gradient-to-t from-primary to-accent rounded-full"
+                              style={{ height: `${Math.random() * 100 + 20}%` }}
+                              animate={{
+                                height: [
+                                  `${Math.random() * 100 + 20}%`,
+                                  `${Math.random() * 100 + 20}%`,
+                                  `${Math.random() * 100 + 20}%`
+                                ]
+                              }}
+                              transition={{
+                                duration: 2,
+                                repeat: Infinity,
+                                delay: i * 0.1
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </MagneticHover>
+              ))}
+            </StaggeredReveal>
           </div>
-        </div>
-      </section>
+        </ParallaxScroll>
 
-      {/* Features */}
-      <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-3xl font-bold mb-4">Мощные Возможности Музыкального ИИ</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Всё необходимое для создания профессиональной музыки с искусственным интеллектом
-            </p>
-          </motion.div>
+        {/* AI Features Section */}
+        <section className="py-32 relative overflow-hidden">
+          {/* Background mesh gradient */}
+          <div className="absolute inset-0 bg-gradient-mesh opacity-30" />
+          
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 60 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1, ease: [0.25, 0.46, 0.45, 0.94] }}
+              viewport={{ once: true }}
+              className="text-center mb-24"
+            >
+              <Badge 
+                variant="secondary" 
+                className="mb-8 glassmorphism-strong glow-soft"
+              >
+                <Cpu className="w-4 h-4 mr-2" />
+                AI-Powered Features
+              </Badge>
+              
+              <h2 className="text-5xl lg:text-7xl font-bold mb-8 leading-tight">
+                Мощные{' '}
+                <span className="gradient-text block lg:inline">
+                  Возможности ИИ
+                </span>
+              </h2>
+              
+              <p className="text-xl lg:text-2xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
+                Передовые технологии искусственного интеллекта для создания 
+                профессиональной музыки любого жанра и стиля.
+              </p>
+            </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              {
-                icon: Brain,
-                title: 'ИИ-Генерация',
-                description: 'Продвинутые нейронные сети создают уникальные композиции на основе ваших промптов'
-              },
-              {
-                icon: Zap,
-                title: 'Молниеносная Скорость',
-                description: 'Генерируйте профессиональные треки менее чем за 30 секунд'
-              },
-              {
-                icon: Users,
-                title: 'Множество Провайдеров',
-                description: 'Интеграция с Mureka AI и Suno для лучших результатов'
-              },
-              {
-                icon: Music,
-                title: 'Все Жанры',
-                description: 'От электронной до классической музыки - создавайте в любом стиле'
-              },
-              {
-                icon: Headphones,
-                title: 'Студийное Качество',
-                description: 'Экспорт в различных форматах со студийным качеством звука'
-              },
-              {
-                icon: Star,
-                title: 'Простота Использования',
-                description: 'Интуитивный интерфейс для новичков и профессионалов'
-              }
-            ].map((feature, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="text-center"
-              >
-                <div className="p-4 rounded-full bg-primary/10 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                  <feature.icon className="w-8 h-8 text-primary" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                <p className="text-muted-foreground">{feature.description}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {[
+                {
+                  icon: Brain,
+                  title: 'Neural Composition',
+                  subtitle: 'ИИ-Генерация',
+                  description: 'Продвинутые нейронные сети создают уникальные композиции на основе ваших промптов',
+                  color: 'primary'
+                },
+                {
+                  icon: Zap,
+                  title: 'Lightning Speed',
+                  subtitle: 'Молниеносная Скорость',
+                  description: 'Генерируйте профессиональные треки менее чем за 30 секунд',
+                  color: 'accent'
+                },
+                {
+                  icon: Users,
+                  title: 'Multi-Provider',
+                  subtitle: 'Множество Провайдеров',
+                  description: 'Интеграция с Mureka AI, Suno и другими для лучших результатов',
+                  color: 'primary'
+                },
+                {
+                  icon: Music,
+                  title: 'Universal Genres',
+                  subtitle: 'Все Жанры',
+                  description: 'От электронной до классической музыки - создавайте в любом стиле',
+                  color: 'accent'
+                },
+                {
+                  icon: Headphones,
+                  title: 'Studio Quality',
+                  subtitle: 'Студийное Качество',
+                  description: 'Экспорт в различных форматах со студийным качеством звука',
+                  color: 'primary'
+                },
+                {
+                  icon: Star,
+                  title: 'User Friendly',
+                  subtitle: 'Простота Использования',
+                  description: 'Интуитивный интерфейс для новичков и профессионалов',
+                  color: 'accent'
+                }
+              ].map((feature, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 60, scale: 0.9 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ 
+                    duration: 0.8, 
+                    delay: index * 0.1,
+                    ease: [0.25, 0.46, 0.45, 0.94]
+                  }}
+                  viewport={{ once: true }}
+                  className="group"
+                >
+                  <MagneticHover>
+                    <Card className="glassmorphism-strong hover-glow h-full p-8 text-center relative overflow-hidden border-border/10">
+                      {/* Hover gradient overlay */}
+                      <div className={`absolute inset-0 bg-gradient-to-br ${
+                        feature.color === 'primary' 
+                          ? 'from-primary/5 via-transparent to-primary/10' 
+                          : 'from-accent/5 via-transparent to-accent/10'
+                      } opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+                      
+                      <div className="relative z-10 space-y-6">
+                        {/* Icon */}
+                        <motion.div
+                          whileHover={{ scale: 1.1, rotate: 5 }}
+                          className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center glassmorphism ${
+                            feature.color === 'primary' ? 'glow-primary' : 'glow-accent'
+                          } group-hover:glow-intense transition-all duration-300`}
+                        >
+                          <feature.icon className={`w-10 h-10 ${
+                            feature.color === 'primary' ? 'text-primary' : 'text-accent'
+                          }`} />
+                        </motion.div>
+                        
+                        {/* Title and subtitle */}
+                        <div className="space-y-2">
+                          <div className={`text-sm font-medium ${
+                            feature.color === 'primary' ? 'text-primary' : 'text-accent'
+                          }`}>
+                            {feature.title}
+                          </div>
+                          <h3 className="text-2xl font-bold group-hover:gradient-text transition-all duration-300">
+                            {feature.subtitle}
+                          </h3>
+                        </div>
+                        
+                        {/* Description */}
+                        <p className="text-muted-foreground leading-relaxed">
+                          {feature.description}
+                        </p>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="space-y-8"
-          >
-            <h2 className="text-3xl font-bold">
-              Готовы создать свой первый ИИ-трек?
-            </h2>
-            <p className="text-xl text-muted-foreground">
-              Присоединяйтесь к тысячам артистов, создающих удивительную музыку с ИИ
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Button 
-                size="lg"
-                className="bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary"
-                asChild
-              >
-                <a href="/auth">
-                  <Sparkles className="w-5 h-5 mr-2" />
-                  Начать Бесплатно
-                </a>
-              </Button>
-              <Button 
-                size="lg" 
-                variant="outline"
-                asChild
-              >
-                <a href="/auth">
-                  У меня есть аккаунт
-                </a>
-              </Button>
+                        {/* Learn more link */}
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          whileHover={{ opacity: 1 }}
+                          className="flex items-center justify-center text-sm text-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                        >
+                          <span>Узнать больше</span>
+                          <ArrowRight className="w-4 h-4 ml-1" />
+                        </motion.div>
+                      </div>
+                    </Card>
+                  </MagneticHover>
+                </motion.div>
+              ))}
             </div>
-          </motion.div>
-        </div>
-      </section>
+          </div>
+        </section>
+
+        {/* Final CTA Section */}
+        <section className="py-32 relative overflow-hidden">
+          <ParallaxScroll speed={0.5}>
+            {/* Gradient background */}
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-accent/15 to-primary/10" />
+            <div className="absolute inset-0 bg-gradient-mesh opacity-50" />
+            
+            {/* Floating elements */}
+            <div className="absolute inset-0 pointer-events-none">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute w-2 h-2 bg-primary/30 rounded-full"
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                  }}
+                  animate={{
+                    y: [0, -50, 0],
+                    opacity: [0.3, 1, 0.3],
+                    scale: [1, 1.5, 1],
+                  }}
+                  transition={{
+                    duration: 4 + Math.random() * 2,
+                    repeat: Infinity,
+                    delay: Math.random() * 2,
+                    ease: "easeInOut"
+                  }}
+                />
+              ))}
+            </div>
+
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+              <motion.div
+                initial={{ opacity: 0, y: 60 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 1, ease: [0.25, 0.46, 0.45, 0.94] }}
+                viewport={{ once: true }}
+                className="space-y-12"
+              >
+                {/* Badge */}
+                <Badge 
+                  variant="secondary" 
+                  className="glassmorphism-strong glow-intense pulse-glow"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Ready to Create?
+                  <Sparkles className="w-4 h-4 ml-2" />
+                </Badge>
+
+                {/* Heading */}
+                <div className="space-y-6">
+                  <h2 className="text-5xl lg:text-7xl font-bold leading-tight">
+                    Создайте свой первый{' '}
+                    <span className="gradient-text block lg:inline">
+                      ИИ-шедевр
+                    </span>{' '}
+                    прямо сейчас
+                  </h2>
+                  
+                  <p className="text-xl lg:text-2xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
+                    Присоединяйтесь к революции в создании музыки. Более{' '}
+                    <span className="gradient-text font-semibold">50,000</span>{' '}
+                    артистов уже создают невероятные треки с помощью нашего ИИ.
+                  </p>
+                </div>
+
+                {/* CTA Buttons */}
+                <div className="flex flex-col sm:flex-row gap-6 justify-center items-center pt-8">
+                  <MagneticHover>
+                    <Button 
+                      size="lg"
+                      className="px-16 py-8 text-xl bg-gradient-to-r from-primary via-primary-variant to-accent hover:opacity-90 glow-intense group relative overflow-hidden"
+                      asChild
+                    >
+                      <a href="/auth" className="flex items-center">
+                        <motion.div
+                          animate={{ rotate: [0, 360] }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                          className="mr-4"
+                        >
+                          <Sparkles className="w-6 h-6" />
+                        </motion.div>
+                        Создать Бесплатно
+                        <motion.div
+                          className="ml-3 group-hover:translate-x-1 transition-transform"
+                        >
+                          <ArrowRight className="w-6 h-6" />
+                        </motion.div>
+                      </a>
+                    </Button>
+                  </MagneticHover>
+                  
+                  <Button 
+                    size="lg" 
+                    variant="outline"
+                    className="px-12 py-8 text-lg glassmorphism-strong border-border/30 hover-glow"
+                    asChild
+                  >
+                    <a href="/auth" className="flex items-center">
+                      <Download className="w-5 h-5 mr-2" />
+                      Демо Версия
+                    </a>
+                  </Button>
+                </div>
+
+                {/* Social proof */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  transition={{ duration: 0.8, delay: 0.5 }}
+                  className="flex items-center justify-center space-x-8 pt-12 text-sm text-muted-foreground"
+                >
+                  <div className="flex items-center">
+                    <Star className="w-4 h-4 text-accent mr-1" />
+                    <span>4.9/5 Рейтинг</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Users className="w-4 h-4 text-primary mr-1" />
+                    <span>15K+ Пользователей</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Zap className="w-4 h-4 text-accent mr-1" />
+                    <span>1M+ Треков</span>
+                  </div>
+                </motion.div>
+              </motion.div>
+            </div>
+          </ParallaxScroll>
+        </section>
+      </div>
     </div>
   );
 };

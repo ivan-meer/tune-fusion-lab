@@ -8,43 +8,56 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Основная темная тема по умолчанию */
-    --background: 224 71% 4%;
-    --foreground: 213 31% 91%;
+    /* Premium AI Music Studio - Dark Theme */
+    --background: 225 25% 2%;
+    --foreground: 210 40% 98%;
 
-    --card: 224 71% 4%;
-    --card-foreground: 213 31% 91%;
+    --card: 225 25% 4%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 224 71% 4%;
-    --popover-foreground: 213 31% 91%;
+    --popover: 225 25% 3%;
+    --popover-foreground: 210 40% 98%;
 
-    /* Яркие акцентные цвета для музыкального приложения */
-    --primary: 263 70% 50%;
-    --primary-foreground: 210 40% 98%;
+    /* AI-Inspired Color Palette */
+    --primary: 270 91% 65%;  /* Electric purple */
+    --primary-foreground: 225 25% 2%;
+    --primary-variant: 285 85% 55%;
 
-    --secondary: 215 28% 17%;
+    --secondary: 225 25% 8%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 215 28% 17%;
-    --muted-foreground: 217 11% 65%;
+    --muted: 225 25% 6%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 142 71% 45%;
-    --accent-foreground: 224 71% 4%;
+    --accent: 180 100% 70%;  /* Cyan glow */
+    --accent-foreground: 225 25% 2%;
+    --accent-variant: 195 100% 75%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 215 28% 17%;
-    --input: 215 28% 17%;
-    --ring: 263 70% 50%;
+    --border: 225 25% 12%;
+    --input: 225 25% 8%;
+    --ring: 270 91% 65%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
-    /* Градиенты и эффекты */
-    --gradient-primary: linear-gradient(135deg, hsl(263 70% 50%), hsl(142 71% 45%));
-    --gradient-bg: linear-gradient(180deg, hsl(224 71% 4%), hsl(215 28% 17%));
-    --glow-primary: 0 0 40px hsl(263 70% 50% / 0.3);
-    --glow-accent: 0 0 40px hsl(142 71% 45% / 0.3);
+    /* Premium gradients and effects */
+    --gradient-primary: linear-gradient(135deg, hsl(270 91% 65%), hsl(285 85% 55%));
+    --gradient-accent: linear-gradient(135deg, hsl(180 100% 70%), hsl(195 100% 75%));
+    --gradient-bg: linear-gradient(135deg, hsl(225 25% 2%) 0%, hsl(225 25% 4%) 50%, hsl(225 25% 6%) 100%);
+    --gradient-mesh: conic-gradient(from 0deg at 50% 50%, hsl(270 91% 65% / 0.1), hsl(180 100% 70% / 0.1), hsl(270 91% 65% / 0.1));
+    
+    /* Advanced glow effects */
+    --glow-primary: 0 0 80px hsl(270 91% 65% / 0.4);
+    --glow-accent: 0 0 80px hsl(180 100% 70% / 0.4);
+    --glow-soft: 0 4px 40px hsl(270 91% 65% / 0.2);
+    --glow-intense: 0 0 120px hsl(270 91% 65% / 0.6);
+    
+    /* Neural network inspired */
+    --neural-node: 270 91% 65%;
+    --neural-connection: 180 100% 70%;
+    --neural-bg: 225 25% 3%;
 
     /* Сайдбар */
     --sidebar-background: 224 71% 4%;
@@ -99,10 +112,22 @@ All colors MUST be HSL.
 }
 
 @layer components {
+  /* Premium Glassmorphism Effects */
   .glassmorphism {
-    @apply bg-card/50 backdrop-blur-xl border border-border/50;
+    @apply bg-card/30 backdrop-blur-2xl border border-border/20;
+    box-shadow: 
+      0 8px 32px hsl(var(--background) / 0.8),
+      inset 0 1px 0 hsl(var(--foreground) / 0.1);
   }
 
+  .glassmorphism-strong {
+    @apply bg-card/50 backdrop-blur-3xl border border-border/30;
+    box-shadow: 
+      0 20px 60px hsl(var(--background) / 0.9),
+      inset 0 1px 0 hsl(var(--foreground) / 0.15);
+  }
+
+  /* Advanced Glow System */
   .glow-primary {
     box-shadow: var(--glow-primary);
   }
@@ -111,12 +136,50 @@ All colors MUST be HSL.
     box-shadow: var(--glow-accent);
   }
 
-  .gradient-text {
-    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
+  .glow-soft {
+    box-shadow: var(--glow-soft);
   }
 
+  .glow-intense {
+    box-shadow: var(--glow-intense);
+  }
+
+  /* Premium Gradient Text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary via-accent to-primary-variant bg-clip-text text-transparent;
+    background-size: 200% 100%;
+    animation: gradient-shift 3s ease-in-out infinite;
+  }
+
+  .gradient-text-accent {
+    @apply bg-gradient-to-r from-accent via-accent-variant to-accent bg-clip-text text-transparent;
+  }
+
+  /* Neural Network Inspired Animations */
+  .neural-pulse {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .neural-pulse::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+      transparent 0%, 
+      hsl(var(--neural-connection) / 0.3) 50%, 
+      transparent 100%
+    );
+    animation: neural-scan 3s linear infinite;
+  }
+
+  /* Advanced Music Visualizer */
   .music-visualizer {
     @apply relative overflow-hidden;
+    background: var(--gradient-mesh);
   }
 
   .music-visualizer::before {
@@ -128,34 +191,118 @@ All colors MUST be HSL.
     bottom: 0;
     background: linear-gradient(90deg, 
       transparent 0%, 
-      hsl(var(--primary) / 0.1) 20%, 
-      hsl(var(--accent) / 0.1) 40%,
-      hsl(var(--primary) / 0.1) 60%,
+      hsl(var(--primary) / 0.2) 25%, 
+      hsl(var(--accent) / 0.3) 50%,
+      hsl(var(--primary-variant) / 0.2) 75%,
       transparent 100%
     );
-    animation: wave 3s ease-in-out infinite;
+    animation: ai-wave 4s ease-in-out infinite;
   }
 
-  @keyframes wave {
-    0%, 100% { transform: translateX(-100%); }
-    50% { transform: translateX(100%); }
-  }
-
+  /* Premium Animations */
   .floating-animation {
-    animation: float 6s ease-in-out infinite;
-  }
-
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-20px); }
+    animation: premium-float 8s ease-in-out infinite;
   }
 
   .pulse-glow {
-    animation: pulse-glow 2s ease-in-out infinite alternate;
+    animation: premium-pulse 3s ease-in-out infinite alternate;
   }
 
-  @keyframes pulse-glow {
-    from { box-shadow: 0 0 20px hsl(var(--primary) / 0.4); }
-    to { box-shadow: 0 0 40px hsl(var(--primary) / 0.8); }
+  .scroll-parallax {
+    transform: translateZ(0);
+    will-change: transform;
+  }
+
+  /* Keyframe Animations */
+  @keyframes gradient-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  @keyframes neural-scan {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+
+  @keyframes ai-wave {
+    0%, 100% { 
+      transform: translateX(-100%) scaleY(1);
+      opacity: 0.5;
+    }
+    50% { 
+      transform: translateX(100%) scaleY(1.2);
+      opacity: 1;
+    }
+  }
+
+  @keyframes premium-float {
+    0%, 100% { 
+      transform: translateY(0px) rotate(0deg);
+      filter: brightness(1);
+    }
+    33% { 
+      transform: translateY(-10px) rotate(1deg);
+      filter: brightness(1.1);
+    }
+    66% { 
+      transform: translateY(-5px) rotate(-1deg);
+      filter: brightness(1.05);
+    }
+  }
+
+  @keyframes premium-pulse {
+    from { 
+      box-shadow: 
+        0 0 30px hsl(var(--primary) / 0.4),
+        0 0 60px hsl(var(--primary) / 0.2);
+      transform: scale(1);
+    }
+    to { 
+      box-shadow: 
+        0 0 60px hsl(var(--primary) / 0.8),
+        0 0 120px hsl(var(--primary) / 0.4);
+      transform: scale(1.02);
+    }
+  }
+
+  /* Scroll-Triggered Animations */
+  .scroll-reveal {
+    opacity: 0;
+    transform: translateY(60px);
+    transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .scroll-reveal.revealed {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .scroll-scale {
+    transform: scale(0.8);
+    opacity: 0;
+    transition: all 1s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .scroll-scale.revealed {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  /* Interactive Hover Effects */
+  .hover-glow {
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .hover-glow:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: var(--glow-intense);
+  }
+
+  .hover-float {
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .hover-float:hover {
+    transform: translateY(-4px);
   }
 }
