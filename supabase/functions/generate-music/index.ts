@@ -264,35 +264,41 @@ async function generateWithSuno(
 
   console.log('Generating with Suno AI...');
 
-  const response = await fetch('https://api.sunoapi.org/api/v1/generate', {
+  // Using the working Suno API implementation
+  const generateRequest = {
+    prompt: lyrics ? `${prompt}. Lyrics: ${lyrics}` : prompt,
+    tags: style,
+    title: prompt.slice(0, 80),
+    make_instrumental: instrumental,
+    wait_audio: false
+  };
+
+  const response = await fetch('https://api.sunoapi.net/api/v1/gateway/generate/music', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${sunoApiKey}`,
+      'api-key': sunoApiKey,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      prompt,
-      style,
-      title: prompt.slice(0, 50),
-      customMode: true,
-      instrumental,
-      model: 'V4',
-      callBackUrl: 'https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback'
-    }),
+    body: JSON.stringify(generateRequest),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.error('Suno API error response:', errorText);
     throw new Error(`Suno API error: ${response.status} ${errorText}`);
   }
 
   const data = await response.json();
+  console.log('Suno API response:', JSON.stringify(data, null, 2));
   
-  if (data.code !== 200) {
-    throw new Error(`Suno API error: ${data.msg || 'Unknown error'}`);
+  if (!data.success) {
+    throw new Error(`Suno API error: ${data.error || 'Unknown error'}`);
   }
 
-  const taskId = data.data.taskId;
+  const taskId = data.data[0]?.task_id;
+  if (!taskId) {
+    throw new Error('No task ID received from Suno API');
+  }
   
   // Poll for completion
   let generationResult;
@@ -300,26 +306,28 @@ async function generateWithSuno(
   const maxAttempts = 60;
 
   while (attempts < maxAttempts) {
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds between polls
     
-    const statusResponse = await fetch(`https://api.sunoapi.org/api/v1/generate/record-info?taskId=${taskId}`, {
+    const statusResponse = await fetch(`https://api.sunoapi.net/api/v1/gateway/query?ids=${taskId}`, {
       headers: {
-        'Authorization': `Bearer ${sunoApiKey}`,
+        'api-key': sunoApiKey,
       },
     });
 
     if (statusResponse.ok) {
       const statusData = await statusResponse.json();
+      console.log(`Poll attempt ${attempts + 1}:`, JSON.stringify(statusData, null, 2));
       
-      if (statusData.code === 200 && statusData.data) {
-        generationResult = statusData.data;
+      if (statusData.success && statusData.data && statusData.data.length > 0) {
+        const track = statusData.data[0];
         
-        if (generationResult.status === 'SUCCESS' || generationResult.status === 'FIRST_SUCCESS') {
+        if (track.status === 'streaming' && track.audio_url) {
+          generationResult = track;
           break;
         }
         
-        if (generationResult.status === 'CREATE_TASK_FAILED' || generationResult.status === 'GENERATE_AUDIO_FAILED') {
-          throw new Error('Suno generation failed');
+        if (track.status === 'error') {
+          throw new Error('Suno generation failed with error');
         }
       }
     }
@@ -327,23 +335,17 @@ async function generateWithSuno(
     attempts++;
   }
 
-  if (!generationResult || (generationResult.status !== 'SUCCESS' && generationResult.status !== 'FIRST_SUCCESS')) {
-    throw new Error('Suno generation timed out or failed');
-  }
-
-  const track = generationResult.audioList && generationResult.audioList[0];
-  
-  if (!track) {
-    throw new Error('No audio track generated');
+  if (!generationResult || !generationResult.audio_url) {
+    throw new Error('Suno generation timed out or failed to produce audio');
   }
 
   return {
-    id: track.id || taskId,
-    title: track.title || prompt.slice(0, 50),
-    audioUrl: track.audioUrl,
-    imageUrl: track.imageUrl,
-    duration: track.duration || 120,
-    lyrics: track.lyric
+    id: generationResult.id || taskId,
+    title: generationResult.title || prompt.slice(0, 50),
+    audioUrl: generationResult.audio_url,
+    imageUrl: generationResult.image_url,
+    duration: generationResult.duration || 120,
+    lyrics: generationResult.lyric
   };
 }
 
