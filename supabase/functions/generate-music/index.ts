@@ -127,26 +127,37 @@ serve(async (req) => {
 
     console.log(`Created generation job: ${jobData.id}`);
 
-    // Start background processing using EdgeRuntime.waitUntil for proper handling
-    EdgeRuntime.waitUntil(
-      processGeneration(jobData.id, provider, model || getDefaultModel(provider), prompt, style, duration, instrumental, lyrics, supabaseAdmin)
-        .catch(error => {
-          console.error(`Background processing failed for job ${jobData.id}:`, error);
+    // Process generation synchronously like the successful 14:54 call
+    try {
+      await processGeneration(jobData.id, provider, model || getDefaultModel(provider), prompt, style, duration, instrumental, lyrics, supabaseAdmin);
+      
+      // Return success response
+      return new Response(
+        JSON.stringify({
+          success: true,
+          jobId: jobData.id,
+          message: 'Generation completed successfully',
+          status: 'completed'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    } catch (generationError) {
+      console.error(`Generation failed for job ${jobData.id}:`, generationError);
+      
+      // Update job to failed status
+      await supabaseAdmin
+        .from('generation_jobs')
+        .update({
+          status: 'failed',
+          progress: 0,
+          error_message: generationError.message
         })
-    );
-    
-    // Return immediate response
-    return new Response(
-      JSON.stringify({
-        success: true,
-        jobId: jobData.id,
-        message: 'Generation started',
-        status: 'pending'
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+        .eq('id', jobData.id);
+      
+      throw generationError;
+    }
 
   } catch (error) {
     console.error('Error in generate-music function:', error);
@@ -166,10 +177,10 @@ serve(async (req) => {
 
 function getDefaultModel(provider: string): string {
   switch (provider) {
-    case 'suno': return 'chirp-v4-5';
+    case 'suno': return 'V4_5';
     case 'mureka': return 'mureka-v6';
     case 'test': return 'test';
-    default: return 'chirp-v4-5';
+    default: return 'V4_5';
   }
 }
 
@@ -348,22 +359,21 @@ async function generateWithSuno(
     .update({ status: 'processing', progress: 40 })
     .eq('id', jobId);
 
-  // Optimized Suno API request with all best practices
+  // Simple Suno API request like the successful 14:54 call
   const generateRequest = {
-    customMode: !instrumental && !!finalLyrics, // Use custom mode only when we have lyrics
-    prompt: instrumental ? prompt : style, // For instrumental: full prompt, for vocal: style only
-    tags: generateTags(style, instrumental),
+    prompt: prompt,
     title: prompt.slice(0, 80),
-    make_instrumental: instrumental,
-    model: "V4_5", // Latest and best model according to docs
-    wait_audio: false,
     callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
   };
 
-  // Add lyrics and adjust prompt for vocal tracks
+  // Add instrumental and model params
+  if (instrumental !== undefined) {
+    generateRequest.make_instrumental = instrumental;
+  }
+  
+  // Add lyrics if provided
   if (!instrumental && finalLyrics) {
     generateRequest.lyrics = finalLyrics;
-    generateRequest.prompt = `${style} style performance`; // Style description for vocals
   }
   
   console.log('Optimized request payload:', JSON.stringify(generateRequest, null, 2));
