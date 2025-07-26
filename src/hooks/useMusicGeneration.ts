@@ -34,16 +34,25 @@ export function useMusicGeneration() {
     try {
       setIsGenerating(true);
       
+      // Check if user is authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Пользователь не аутентифицирован');
+      }
+      
+      console.log('Calling generate-music function...');
       const { data, error } = await supabase.functions.invoke('generate-music', {
         body: request
       });
+
+      console.log('Response:', { data, error });
 
       if (error) {
         throw new Error(error.message || 'Failed to start music generation');
       }
 
-      if (!data.success) {
-        throw new Error(data.error || 'Music generation failed');
+      if (!data || !data.success) {
+        throw new Error(data?.error || 'Music generation failed');
       }
 
       // Start polling for status
