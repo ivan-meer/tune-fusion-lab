@@ -182,7 +182,10 @@ async function processGeneration(
       .eq('id', jobId);
 
     let result;
+    console.log('Starting generation with provider:', provider, 'model:', model);
+    
     if (provider === 'suno') {
+      console.log('Calling generateWithSuno...');
       result = await generateWithSuno({
         prompt,
         provider,
@@ -193,12 +196,16 @@ async function processGeneration(
         lyrics
       });
     } else if (provider === 'mureka') {
+      console.log('Calling generateWithMureka...');
       result = await generateWithMureka(prompt, style, duration, instrumental, lyrics);
     } else if (provider === 'test') {
+      console.log('Calling generateWithTest...');
       result = await generateWithTest(prompt, style, duration, instrumental, lyrics);
     } else {
       throw new Error('Invalid provider');
     }
+    
+    console.log('Generation result:', result);
 
     // Update job progress
     await supabaseAdmin
