@@ -83,87 +83,34 @@ export function useMusicGeneration() {
         
         return data;
       }
-
-      // If generation is still in progress, start polling
-      const jobId = data.jobId;
-      setCurrentJob({
-        id: jobId,
-        status: 'processing',
-        progress: 10
-      });
-
-      // Poll for updates with proper cleanup
-      let pollAttempts = 0;
-      const maxPollAttempts = 150; // 5 minutes with 2-second intervals
       
-      const pollInterval = setInterval(async () => {
-        try {
-          pollAttempts++;
-          
-          if (pollAttempts > maxPollAttempts) {
-            clearInterval(pollInterval);
-            setIsGenerating(false);
-            toast({
-              title: "Тайм-аут генерации",
-              description: "Генерация заняла слишком много времени",
-              variant: "destructive"
-            });
-            return;
-          }
+      // Check if job is already completed but without tracks data
+      if (data.job && data.job.status === 'completed') {
+        console.log('Generation completed without tracks data');
+        
+        setCurrentJob({
+          id: data.job.id,
+          status: 'completed',
+          progress: 100
+        });
+        
+        setIsGenerating(false);
+        
+        toast({
+          title: "Генерация завершена!",
+          description: "Трек готов к прослушиванию"
+        });
+        
+        return data;
+      }
 
-          const { data: statusData, error: statusError } = await supabase.functions.invoke(
-            'get-generation-status',
-            {
-              body: { jobId }
-            }
-          );
-
-          if (statusError || !statusData?.success) {
-            console.error('Failed to get generation status:', statusError);
-            return;
-          }
-
-          const job = statusData.job;
-          console.log('Job status update:', job);
-          
-          setCurrentJob({
-            id: job.id,
-            status: job.status,
-            progress: job.progress || 0,
-            track: job.track_id ? {
-              id: job.track_id,
-              title: job.response_data?.title || 'Generated Track',
-              file_url: job.response_data?.audioUrl,
-              artwork_url: job.response_data?.imageUrl,
-              duration: job.response_data?.duration || 120,
-              created_at: new Date().toISOString()
-            } : undefined
-          });
-
-          if (job.status === 'completed') {
-            clearInterval(pollInterval);
-            setIsGenerating(false);
-            
-            toast({
-              title: "Генерация завершена!",
-              description: `Трек готов к прослушиванию`
-            });
-          } else if (job.status === 'failed') {
-            clearInterval(pollInterval);
-            setIsGenerating(false);
-            
-            toast({
-              title: "Ошибка генерации",
-              description: job.error_message || "Произошла ошибка при создании трека",
-              variant: "destructive"
-            });
-          }
-        } catch (error) {
-          console.error('Error polling generation status:', error);
-          clearInterval(pollInterval);
-          setIsGenerating(false);
-        }
-      }, 2000); // Poll every 2 seconds
+      // Generation is started, no need to poll as it's completed synchronously
+      toast({
+        title: "Генерация завершена!",
+        description: "Трек готов к прослушиванию"
+      });
+      
+      setIsGenerating(false);
 
       return data;
       

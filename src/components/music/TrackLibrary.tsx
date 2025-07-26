@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -179,8 +179,20 @@ export default function TrackLibrary() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   
-  const { tracks, isLoading, error, deleteTrack, likeTrack } = useUserTracks();
+  const { tracks, isLoading, error, loadTracks, deleteTrack, likeTrack } = useUserTracks();
   const { toast } = useToast();
+  
+  // Auto-refresh tracks when component mounts and periodically
+  useEffect(() => {
+    loadTracks();
+    
+    // Refresh tracks every 30 seconds to catch new generations
+    const interval = setInterval(() => {
+      loadTracks();
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [loadTracks]);
 
   // Filter tracks based on search and filters
   const filteredTracks = tracks.filter(track => {
@@ -283,13 +295,23 @@ export default function TrackLibrary() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Music className="h-5 w-5" />
-            Моя библиотека
-            <Badge variant="secondary" className="ml-2">
-              {tracks.length} треков
-            </Badge>
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Music className="h-5 w-5" />
+              Моя библиотека
+              <Badge variant="secondary" className="ml-2">
+                {tracks.length} треков
+              </Badge>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={loadTracks}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Обновление...' : 'Обновить'}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Search and Filters */}
