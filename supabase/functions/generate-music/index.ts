@@ -264,13 +264,14 @@ async function generateWithSuno(
 
   console.log('Generating with Suno AI...');
 
-  // Using the working Suno API implementation
+  // Using the working Suno API implementation with callback URL
   const generateRequest = {
     prompt: lyrics ? `${prompt}. Lyrics: ${lyrics}` : prompt,
     tags: style,
     title: prompt.slice(0, 80),
     make_instrumental: instrumental,
-    wait_audio: false
+    wait_audio: true,
+    callBackUrl: ""  // Empty string as required by API
   };
 
   const response = await fetch('https://api.sunoapi.net/api/v1/gateway/generate/music', {
@@ -335,8 +336,12 @@ async function generateWithSuno(
     attempts++;
   }
 
-  if (!generationResult || !generationResult.audio_url) {
-    throw new Error('Suno generation timed out or failed to produce audio');
+  if (!generationResult) {
+    throw new Error('Suno generation timed out');
+  }
+
+  if (!generationResult.audio_url) {
+    throw new Error('No audio track generated. API response: ' + JSON.stringify(generationResult));
   }
 
   return {

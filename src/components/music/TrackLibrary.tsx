@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { useUserTracks, Track } from '@/hooks/useUserTracks';
 import { useToast } from '@/hooks/use-toast';
+import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import { 
   Music, 
   Play, 
@@ -182,16 +183,17 @@ export default function TrackLibrary() {
   const { tracks, isLoading, error, loadTracks, deleteTrack, likeTrack } = useUserTracks();
   const { toast } = useToast();
   
-  // Auto-refresh tracks when component mounts and periodically
+  // Real-time updates for tracks
+  useRealtimeUpdates({
+    onTrackUpdate: () => {
+      console.log('Real-time track update detected, refreshing...');
+      loadTracks();
+    }
+  });
+  
+  // Auto-refresh tracks when component mounts
   useEffect(() => {
     loadTracks();
-    
-    // Refresh tracks every 30 seconds to catch new generations
-    const interval = setInterval(() => {
-      loadTracks();
-    }, 30000);
-    
-    return () => clearInterval(interval);
   }, [loadTracks]);
 
   // Filter tracks based on search and filters

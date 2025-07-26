@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useMusicGeneration, GenerationRequest } from '@/hooks/useMusicGeneration';
 import { supabase } from '@/integrations/supabase/client';
+import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import { Wand2, Sparkles, Music, Play, Download, Share, Shuffle, Zap } from 'lucide-react';
 
 interface AudioPlayerProps {
@@ -53,6 +54,13 @@ export default function MusicStudio() {
   
   const { user } = useAuth();
   const { generateMusic, resetGeneration, isGenerating, currentJob } = useMusicGeneration();
+  
+  // Real-time updates for generation jobs
+  useRealtimeUpdates({
+    onJobUpdate: () => {
+      console.log('Generation job update detected');
+    }
+  });
 
   // Массивы для генерации случайных промптов
   const moods = ['энергичная', 'меланхоличная', 'романтичная', 'драйвовая', 'спокойная', 'мистическая', 'веселая', 'мечтательная'];

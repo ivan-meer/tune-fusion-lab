@@ -55,63 +55,63 @@ export function useMusicGeneration() {
         throw new Error(data?.error || 'Music generation failed');
       }
 
-      // Check if we have completed job data immediately
-      if (data.job && data.job.status === 'completed' && data.job.tracks) {
-        console.log('Generation completed immediately');
-        const track = Array.isArray(data.job.tracks) ? data.job.tracks[0] : data.job.tracks;
+      // Check if generation was successful and set the job state
+      if (data.job) {
+        console.log('Generation completed, job status:', data.job.status);
         
-        setCurrentJob({
-          id: data.job.id,
-          status: 'completed',
-          progress: 100,
-          track: {
-            id: track.id,
-            title: track.title,
-            file_url: track.file_url,
-            artwork_url: track.artwork_url,
-            duration: track.duration,
-            created_at: track.created_at
-          }
-        });
-        
-        setIsGenerating(false);
-        
-        toast({
-          title: "Генерация завершена!",
-          description: `Трек "${track.title}" готов к прослушиванию`
-        });
-        
-        return data;
-      }
-      
-      // Check if job is already completed but without tracks data
-      if (data.job && data.job.status === 'completed') {
-        console.log('Generation completed without tracks data');
-        
-        setCurrentJob({
-          id: data.job.id,
-          status: 'completed',
-          progress: 100
-        });
-        
-        setIsGenerating(false);
-        
+        if (data.job.status === 'completed' && data.job.tracks) {
+          const track = Array.isArray(data.job.tracks) ? data.job.tracks[0] : data.job.tracks;
+          
+          setCurrentJob({
+            id: data.job.id,
+            status: 'completed',
+            progress: 100,
+            track: {
+              id: track.id,
+              title: track.title,
+              file_url: track.file_url,
+              artwork_url: track.artwork_url,
+              duration: track.duration,
+              created_at: track.created_at
+            }
+          });
+          
+          toast({
+            title: "Генерация завершена!",
+            description: `Трек "${track.title}" готов к прослушиванию`
+          });
+        } else if (data.job.status === 'completed') {
+          setCurrentJob({
+            id: data.job.id,
+            status: 'completed',
+            progress: 100
+          });
+          
+          toast({
+            title: "Генерация завершена!",
+            description: "Трек готов к прослушиванию"
+          });
+        } else if (data.job.status === 'failed') {
+          setCurrentJob({
+            id: data.job.id,
+            status: 'failed',
+            progress: 0
+          });
+          
+          toast({
+            title: "Ошибка генерации",
+            description: data.job.error_message || "Произошла ошибка при генерации",
+            variant: "destructive"
+          });
+        }
+      } else {
         toast({
           title: "Генерация завершена!",
           description: "Трек готов к прослушиванию"
         });
-        
-        return data;
       }
-
-      // Generation is started, no need to poll as it's completed synchronously
-      toast({
-        title: "Генерация завершена!",
-        description: "Трек готов к прослушиванию"
-      });
       
       setIsGenerating(false);
-
       return data;
       
     } catch (error) {
