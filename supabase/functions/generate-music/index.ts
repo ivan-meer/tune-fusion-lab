@@ -26,9 +26,16 @@ serve(async (req) => {
     console.log('Creating Supabase client...');
     console.log('Authorization header:', req.headers.get('Authorization'));
     
+    // Use hardcoded values since env vars might not be available
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || 'https://psqxgksushbaoisbbdir.supabase.co';
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzcXhna3N1c2hiYW9pc2JiZGlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc4ODQzNTEsImV4cCI6MjA2MzQ2MDM1MX0.lhdQtxSv5syaYA59u7XFY3Ar5BesVJkC2tVWlO7CmwE';
+    
+    console.log('Supabase URL:', supabaseUrl);
+    console.log('Supabase Key present:', !!supabaseKey);
+    
     const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      supabaseUrl,
+      supabaseKey,
       {
         global: {
           headers: { Authorization: req.headers.get('Authorization')! },
