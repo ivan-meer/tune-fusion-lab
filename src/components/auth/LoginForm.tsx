@@ -8,8 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Music, Eye, EyeOff } from 'lucide-react';
-import { useAuthStore } from '@/stores/authStore';
-import type { LoginCredentials } from '@/types/user';
+import { useAuth } from '@/components/auth/AuthProvider';
+
 
 const loginSchema = z.object({
   email: z.string().email('Неверный адрес электронной почты'),
@@ -24,7 +24,9 @@ interface LoginFormProps {
 
 export default function LoginForm({ onSwitchToRegister }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { signIn } = useAuth();
 
   const {
     register,
@@ -33,14 +35,24 @@ export default function LoginForm({ onSwitchToRegister }: LoginFormProps) {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: 'demo@example.com',
-      password: 'demo123'
+      email: '',
+      password: ''
     }
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    clearError();
-    await login(data as LoginCredentials);
+    try {
+      setIsLoading(true);
+      setError(null);
+      const { error: authError } = await signIn(data.email, data.password);
+      if (authError) {
+        setError(authError.message);
+      }
+    } catch (err) {
+      setError('Произошла ошибка при входе');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

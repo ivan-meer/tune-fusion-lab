@@ -9,8 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Music, Eye, EyeOff } from 'lucide-react';
-import { useAuthStore } from '@/stores/authStore';
-import type { RegisterCredentials } from '@/types/user';
+import { useAuth } from '@/components/auth/AuthProvider';
+
 
 const registerSchema = z.object({
   username: z.string()
@@ -37,7 +37,9 @@ interface RegisterFormProps {
 export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { register: registerUser, isLoading, error, clearError } = useAuthStore();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { signUp } = useAuth();
 
   const {
     register,
@@ -49,8 +51,18 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   });
 
   const onSubmit = async (data: RegisterFormData) => {
-    clearError();
-    await registerUser(data as RegisterCredentials);
+    try {
+      setIsLoading(true);
+      setError(null);
+      const { error: authError } = await signUp(data.email, data.password);
+      if (authError) {
+        setError(authError.message);
+      }
+    } catch (err) {
+      setError('Произошла ошибка при регистрации');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
