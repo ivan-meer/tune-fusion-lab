@@ -92,9 +92,25 @@ export function useMusicGeneration() {
         progress: 10
       });
 
-      // Poll for updates
+      // Poll for updates with proper cleanup
+      let pollAttempts = 0;
+      const maxPollAttempts = 150; // 5 minutes with 2-second intervals
+      
       const pollInterval = setInterval(async () => {
         try {
+          pollAttempts++;
+          
+          if (pollAttempts > maxPollAttempts) {
+            clearInterval(pollInterval);
+            setIsGenerating(false);
+            toast({
+              title: "Тайм-аут генерации",
+              description: "Генерация заняла слишком много времени",
+              variant: "destructive"
+            });
+            return;
+          }
+
           const { data: statusData, error: statusError } = await supabase.functions.invoke(
             'get-generation-status',
             {
@@ -130,7 +146,7 @@ export function useMusicGeneration() {
             
             toast({
               title: "Генерация завершена!",
-              description: `Трек "${job.tracks?.title}" готов к прослушиванию`
+              description: `Трек готов к прослушиванию`
             });
           } else if (job.status === 'failed') {
             clearInterval(pollInterval);
@@ -144,21 +160,10 @@ export function useMusicGeneration() {
           }
         } catch (error) {
           console.error('Error polling generation status:', error);
+          clearInterval(pollInterval);
+          setIsGenerating(false);
         }
       }, 2000); // Poll every 2 seconds
-
-      // Cleanup after 5 minutes
-      setTimeout(() => {
-        clearInterval(pollInterval);
-        if (isGenerating) {
-          setIsGenerating(false);
-          toast({
-            title: "Тайм-аут генерации",
-            description: "Генерация заняла слишком много времени",
-            variant: "destructive"
-          });
-        }
-      }, 300000); // 5 minutes
 
       return data;
       
