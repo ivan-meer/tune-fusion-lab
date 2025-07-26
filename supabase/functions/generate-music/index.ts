@@ -98,8 +98,8 @@ serve(async (req) => {
 
     console.log(`Created generation job: ${jobData.id}`);
 
-    // Start background processing without waiting
-    processGeneration(jobData.id, provider, model, prompt, style, duration, instrumental, lyrics, supabaseAdmin)
+    // Start background processing without waiting  
+    processGeneration(jobData.id, provider, model || (provider === 'test' ? 'test' : 'chirp-v4'), prompt, style, duration, instrumental, lyrics, supabaseAdmin)
       .catch(error => {
         console.error(`Background processing failed for job ${jobData.id}:`, error);
       });
