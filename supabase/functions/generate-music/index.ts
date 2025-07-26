@@ -94,6 +94,9 @@ serve(async (req) => {
       lyrics
     }: GenerationRequest = await req.json();
 
+    // Ensure boolean values are properly cast
+    const isInstrumental = Boolean(instrumental);
+
     if (!prompt) {
       throw new Error('Prompt is required');
     }
@@ -111,7 +114,7 @@ serve(async (req) => {
           prompt,
           style,
           duration,
-          instrumental,
+          instrumental: isInstrumental,
           lyrics,
           model
         },
@@ -129,7 +132,7 @@ serve(async (req) => {
 
     // Process generation synchronously like the successful 14:54 call
     try {
-      await processGeneration(jobData.id, provider, model || getDefaultModel(provider), prompt, style, duration, instrumental, lyrics, supabaseAdmin);
+      await processGeneration(jobData.id, provider, model || getDefaultModel(provider), prompt, style, duration, isInstrumental, lyrics, supabaseAdmin);
       
       // Return success response
       return new Response(
@@ -365,14 +368,11 @@ async function generateWithSuno(
   const generateRequest = {
     prompt: prompt,
     title: prompt.slice(0, 80),
-    model: model, // Add model parameter
+    model: model,
+    make_instrumental: instrumental === true, // Always boolean
+    customMode: !instrumental && !!finalLyrics, // Always boolean  
     callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
   };
-
-  // Add instrumental and model params
-  if (instrumental !== undefined) {
-    generateRequest.make_instrumental = instrumental;
-  }
   
   // Add lyrics if provided
   if (!instrumental && finalLyrics) {
