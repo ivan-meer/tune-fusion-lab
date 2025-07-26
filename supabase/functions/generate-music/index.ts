@@ -212,12 +212,8 @@ async function processGeneration(
   try {
     console.log(`Processing generation job: ${jobId}`);
     
-    // Update job status to processing
-    await supabaseAdmin
-      .from('generation_jobs')
-      .update({ status: 'processing', progress: 10 })
-      .eq('id', jobId);
-
+    // НЕ обновляем прогресс здесь - делаем это только в конкретных провайдерах
+    
     let result;
     console.log('Starting generation with provider:', provider, 'model:', model);
     
@@ -245,11 +241,7 @@ async function processGeneration(
     
     console.log('Generation result:', result);
 
-    // Update job progress
-    await supabaseAdmin
-      .from('generation_jobs')
-      .update({ status: 'processing', progress: 80 })
-      .eq('id', jobId);
+    // НЕ обновляем прогресс здесь - это делается в generateWithSuno
 
     // Create track record
     const { data: trackData, error: trackError } = await supabaseAdmin
