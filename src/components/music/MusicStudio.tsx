@@ -10,6 +10,7 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useMusicGeneration, GenerationRequest } from '@/hooks/useMusicGeneration';
+import { supabase } from '@/integrations/supabase/client';
 import { Wand2, Sparkles, Music, Play, Download, Share, Shuffle, Zap } from 'lucide-react';
 
 interface AudioPlayerProps {
@@ -257,6 +258,28 @@ export default function MusicStudio() {
               >
                 <Sparkles className="h-4 w-4 mr-2" />
                 {isGenerating ? 'Создаем...' : 'Создать музыку'}
+              </Button>
+              
+              <Button 
+                onClick={async () => {
+                  try {
+                    const { data, error } = await supabase.functions.invoke('test-auth');
+                    console.log('Test auth result:', { data, error });
+                    if (data?.success) {
+                      alert('Аутентификация работает!');
+                    } else {
+                      alert(`Ошибка аутентификации: ${data?.error || error?.message}`);
+                    }
+                  } catch (err) {
+                    console.error('Test auth error:', err);
+                    alert(`Ошибка: ${err.message}`);
+                  }
+                }}
+                variant="outline"
+                className="w-full"
+                size="sm"
+              >
+                Тест аутентификации
               </Button>
             </>
           ) : (
