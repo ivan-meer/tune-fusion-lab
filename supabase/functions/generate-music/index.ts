@@ -136,7 +136,7 @@ serve(async (req) => {
 async function processGeneration(
   jobId: string,
   provider: string,
-  model: string,
+  model: string | undefined,
   prompt: string,
   style: string,
   duration: number,
@@ -144,6 +144,9 @@ async function processGeneration(
   lyrics: string | undefined,
   supabaseAdmin: any
 ) {
+  console.log(`=== Starting processGeneration for job ${jobId} ===`);
+  console.log('Parameters:', { provider, model, prompt: prompt.slice(0, 50), style, duration, instrumental, hasLyrics: !!lyrics });
+  
   try {
     console.log(`Processing generation job: ${jobId}`);
     
