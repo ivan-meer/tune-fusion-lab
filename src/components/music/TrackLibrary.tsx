@@ -71,9 +71,9 @@ export default function TrackLibrary() {
     }
   });
   
-  // Auto-refresh tracks when component mounts
+  // Auto-refresh tracks when component mounts (without auto-sync to prevent loops)
   useEffect(() => {
-    loadTracks();
+    loadTracks(false); // FIXED: Explicit false to prevent auto-sync loop
   }, [loadTracks]);
 
   // Filter tracks based on search and filters

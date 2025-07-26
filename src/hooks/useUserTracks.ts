@@ -83,7 +83,7 @@ export function useUserTracks() {
    * Loads user tracks from database with automatic storage sync
    * Enhanced version that validates file URLs and syncs with storage bucket
    */
-  const loadTracks = useCallback(async (syncStorage = true) => {
+  const loadTracks = useCallback(async (syncStorage = false) => { // FIXED: Disabled auto-sync by default
     if (!user) return;
 
     try {

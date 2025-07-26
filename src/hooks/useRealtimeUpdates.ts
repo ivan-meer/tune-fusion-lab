@@ -14,12 +14,12 @@ export function useRealtimeUpdates({ onTrackUpdate, onJobUpdate }: UseRealtimeUp
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT', // FIXED: Only listen to new tracks, not URL updates
           schema: 'public',
           table: 'tracks'
         },
         (payload) => {
-          console.log('Track update:', payload);
+          console.log('New track added:', payload);
           onTrackUpdate?.();
         }
       )
