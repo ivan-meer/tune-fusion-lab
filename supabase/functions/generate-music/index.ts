@@ -191,8 +191,8 @@ async function generateWithSuno(
 
   console.log('Generating with Suno AI...');
 
-  // Suno API integration
-  const response = await fetch('https://api.suno.ai/v1/generate', {
+  // Suno API integration (updated to match official docs)
+  const response = await fetch('https://api.sunoapi.org/api/v1/generate', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${sunoApiKey}`,
@@ -200,11 +200,11 @@ async function generateWithSuno(
     },
     body: JSON.stringify({
       prompt,
-      tags: style,
-      duration,
+      style,
+      title: prompt.slice(0, 50),
+      customMode: true,
       instrumental,
-      lyrics: instrumental ? undefined : lyrics,
-      model: 'v4' // Latest Suno model
+      model: 'V4' // Latest Suno model
     }),
   });
 
@@ -215,38 +215,64 @@ async function generateWithSuno(
 
   const data = await response.json();
   
-  // Poll for completion (Suno is async)
-  let generationResult = data;
+  if (data.code !== 200) {
+    throw new Error(`Suno API error: ${data.msg || 'Unknown error'}`);
+  }
+
+  const taskId = data.data.taskId;
+  
+  // Poll for completion using correct status endpoint
+  let generationResult;
   let attempts = 0;
   const maxAttempts = 60; // 5 minutes with 5-second intervals
 
-  while (generationResult.status !== 'completed' && attempts < maxAttempts) {
+  while (attempts < maxAttempts) {
     await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
     
-    const statusResponse = await fetch(`https://api.suno.ai/v1/generate/${data.id}`, {
+    const statusResponse = await fetch(`https://api.sunoapi.org/api/v1/generate/record-info?taskId=${taskId}`, {
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
       },
     });
 
     if (statusResponse.ok) {
-      generationResult = await statusResponse.json();
+      const statusData = await statusResponse.json();
+      
+      if (statusData.code === 200 && statusData.data) {
+        generationResult = statusData.data;
+        
+        // Check if generation is complete
+        if (generationResult.status === 'SUCCESS' || generationResult.status === 'FIRST_SUCCESS') {
+          break;
+        }
+        
+        if (generationResult.status === 'CREATE_TASK_FAILED' || generationResult.status === 'GENERATE_AUDIO_FAILED') {
+          throw new Error('Suno generation failed');
+        }
+      }
     }
     
     attempts++;
   }
 
-  if (generationResult.status !== 'completed') {
-    throw new Error('Suno generation timed out');
+  if (!generationResult || (generationResult.status !== 'SUCCESS' && generationResult.status !== 'FIRST_SUCCESS')) {
+    throw new Error('Suno generation timed out or failed');
+  }
+
+  // Get the first track from the results (Suno returns 2 tracks by default)
+  const track = generationResult.audioList && generationResult.audioList[0];
+  
+  if (!track) {
+    throw new Error('No audio track generated');
   }
 
   return {
-    id: generationResult.id,
-    title: generationResult.title,
-    audioUrl: generationResult.audio_url,
-    imageUrl: generationResult.image_url,
-    duration: generationResult.duration,
-    lyrics: generationResult.lyrics
+    id: track.id || taskId,
+    title: track.title || prompt.slice(0, 50),
+    audioUrl: track.audioUrl,
+    imageUrl: track.imageUrl,
+    duration: track.duration || 120,
+    lyrics: track.lyric
   };
 }
 
