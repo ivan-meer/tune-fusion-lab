@@ -369,7 +369,7 @@ async function generateWithSuno(
     prompt: prompt,
     title: prompt.slice(0, 80),
     model: model,
-    make_instrumental: instrumental === true, // Always boolean
+    make_instrumental: instrumental, // Already boolean from function parameter
     customMode: !instrumental && !!finalLyrics, // Always boolean  
     callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
   };
@@ -380,6 +380,9 @@ async function generateWithSuno(
   }
   
   console.log('Optimized request payload:', JSON.stringify(generateRequest, null, 2));
+  console.log('Final values check:');
+  console.log('- make_instrumental type:', typeof generateRequest.make_instrumental, 'value:', generateRequest.make_instrumental);
+  console.log('- customMode type:', typeof generateRequest.customMode, 'value:', generateRequest.customMode);
 
   const result = await retryApiCall(async () => {
     const response = await fetch('https://api.sunoapi.org/api/v1/generate', {
