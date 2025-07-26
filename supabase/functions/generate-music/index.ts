@@ -242,7 +242,8 @@ async function generateWithSuno(
       title: prompt.slice(0, 50),
       customMode: true,
       instrumental,
-      model: 'V4'
+      model: 'V4',
+      callBackUrl: 'https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback'
     }),
   });
 
