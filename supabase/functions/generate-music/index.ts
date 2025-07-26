@@ -286,9 +286,10 @@ async function generateWithSuno(request: GenerationRequest) {
 
   console.log('Generating with Suno AI...');
 
-  // Use same endpoint as successful generation
+  // Use correct Suno API request format according to documentation
   const generateRequest = {
     prompt: request.lyrics ? `${request.prompt}. Lyrics: ${request.lyrics}` : request.prompt,
+    customMode: true, // Required parameter according to API docs
     model: request.model || 'chirp-v4',
     make_instrumental: request.instrumental,
     tags: request.style,
