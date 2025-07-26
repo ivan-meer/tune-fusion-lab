@@ -54,7 +54,7 @@ export default function TrackLibrary() {
   const [showAdmin, setShowAdmin] = useState(false);
   
   // Data management hooks
-  const { tracks, isLoading, error, loadTracks, deleteTrack, likeTrack } = useUserTracks();
+  const { tracks, isLoading, error, loadTracks, deleteTrack, likeTrack, syncTrackStorage } = useUserTracks();
   const [playerState, playerActions] = useAudioPlayer();
   const { toast } = useToast();
   
@@ -298,11 +298,22 @@ export default function TrackLibrary() {
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={loadTracks}
+                onClick={() => loadTracks(true)}
                 disabled={isLoading}
               >
                 <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
                 {isLoading ? 'Обновление...' : 'Обновить'}
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={syncTrackStorage}
+                disabled={isLoading}
+                title="Синхронизировать URL треков с хранилищем"
+              >
+                <Sparkles className="h-4 w-4 mr-1" />
+                Синхронизация
               </Button>
             </div>
           </div>

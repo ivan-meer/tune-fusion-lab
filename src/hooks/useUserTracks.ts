@@ -1,6 +1,24 @@
+/**
+ * Custom hook for managing user's music tracks
+ * 
+ * Enhanced version with Supabase Storage integration
+ * Provides comprehensive track management with real-time sync capabilities
+ * 
+ * Features:
+ * - Database operations (CRUD)
+ * - Storage bucket synchronization
+ * - Real-time updates
+ * - File validation and cleanup
+ * 
+ * @author AI Music Generator Team
+ * @version 2.0.0 - Enhanced with storage integration
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { useTrackStorage } from '@/hooks/useTrackStorage';
+import { useToast } from '@/hooks/use-toast';
 
 // Use the Database types from Supabase
 type DatabaseTrack = {
@@ -56,8 +74,16 @@ export function useUserTracks() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  const { toast } = useToast();
+  
+  // Storage integration hook
+  const trackStorage = useTrackStorage();
 
-  const loadTracks = useCallback(async () => {
+  /**
+   * Loads user tracks from database with automatic storage sync
+   * Enhanced version that validates file URLs and syncs with storage bucket
+   */
+  const loadTracks = useCallback(async (syncStorage = true) => {
     if (!user) return;
 
     try {
@@ -96,6 +122,13 @@ export function useUserTracks() {
       }));
 
       setTracks(transformedTracks);
+
+      // Automatically sync storage URLs if requested
+      if (syncStorage && transformedTracks.length > 0) {
+        // Don't await this to avoid blocking the UI
+        trackStorage.syncTrackUrls().catch(console.error);
+      }
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load tracks';
       setError(errorMessage);
@@ -103,7 +136,7 @@ export function useUserTracks() {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, trackStorage]);
 
   const deleteTrack = useCallback(async (trackId: string) => {
     if (!user) return;
@@ -207,6 +240,111 @@ export function useUserTracks() {
     }
   }, [user, tracks, loadTracks]);
 
+  /**
+   * Manually sync all track URLs with storage bucket
+   * Useful for fixing broken file URLs or after storage changes
+   */
+  const syncTrackStorage = useCallback(async () => {
+    try {
+      await trackStorage.syncTrackUrls();
+      // Reload tracks to get updated URLs
+      await loadTracks(false); // Don't sync again to avoid loop
+      
+      toast({
+        title: "Синхронизация завершена",
+        description: "URL треков обновлены из хранилища",
+      });
+    } catch (err) {
+      console.error('Sync storage error:', err);
+      toast({
+        title: "Ошибка синхронизации",
+        description: "Не удалось синхронизировать с хранилищем",
+        variant: "destructive",
+      });
+    }
+  }, [trackStorage, loadTracks, toast]);
+
+  /**
+   * Upload a new track file to storage and create database record
+   * Enhanced version with full storage integration
+   */
+  const uploadTrack = useCallback(async (
+    file: File, 
+    metadata: Partial<Track>
+  ): Promise<Track | null> => {
+    if (!user) return null;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // First create track record in database
+      const { data: newTrack, error: createError } = await supabase
+        .from('tracks')
+        .insert([{
+          user_id: user.id,
+          title: metadata.title || file.name.replace(/\.[^/.]+$/, ""),
+          description: metadata.description,
+          genre: metadata.genre,
+          mood: metadata.mood,
+          tags: metadata.tags,
+          is_public: metadata.is_public || false,
+          provider: metadata.provider || 'suno'
+        }])
+        .select()
+        .single();
+
+      if (createError || !newTrack) {
+        throw new Error(`Failed to create track record: ${createError?.message}`);
+      }
+
+      // Upload file to storage
+      const publicUrl = await trackStorage.uploadTrackFile(file, newTrack.id);
+
+      // Transform to our interface
+      const track: Track = {
+        id: newTrack.id,
+        title: newTrack.title,
+        description: newTrack.description || undefined,
+        duration: undefined, // Will be updated when file is processed
+        file_url: publicUrl,
+        genre: newTrack.genre || undefined,
+        mood: newTrack.mood || undefined,
+        is_public: newTrack.is_public,
+        provider: newTrack.provider as 'mureka' | 'suno' | 'hybrid',
+        tags: newTrack.tags || undefined,
+        play_count: newTrack.play_count,
+        like_count: newTrack.like_count,
+        created_at: newTrack.created_at,
+        updated_at: newTrack.updated_at
+      };
+
+      // Update local state
+      setTracks(prev => [track, ...prev]);
+
+      toast({
+        title: "Трек загружен",
+        description: `"${track.title}" добавлен в библиотеку`,
+      });
+
+      return track;
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to upload track';
+      setError(errorMessage);
+      
+      toast({
+        title: "Ошибка загрузки",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, trackStorage, toast]);
+
   // Load tracks when user changes
   useEffect(() => {
     if (user) {
@@ -218,11 +356,15 @@ export function useUserTracks() {
 
   return {
     tracks,
-    isLoading,
-    error,
+    isLoading: isLoading || trackStorage.isLoading,
+    error: error || trackStorage.error,
     loadTracks,
     deleteTrack,
     updateTrack,
-    likeTrack
+    likeTrack,
+    // New storage functions
+    syncTrackStorage,
+    uploadTrack,
+    trackStorage // Expose storage operations for advanced use
   };
 }
