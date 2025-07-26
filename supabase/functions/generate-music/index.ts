@@ -303,17 +303,27 @@ async function generateWithSuno(request: GenerationRequest) {
     body: JSON.stringify(generateRequest),
   });
   
+  console.log('Suno API response status:', response.status, response.statusText);
+  console.log('Suno API response headers:', Object.fromEntries(response.headers.entries()));
+  
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Suno API error response:', errorText);
+    console.error('Suno API error response status:', response.status);
+    console.error('Suno API error response body:', errorText);
     throw new Error(`Suno API error: ${response.status} ${response.statusText}. Response: ${errorText}`);
   }
 
   const data = await response.json();
-  console.log('Suno API response:', JSON.stringify(data, null, 2));
+  console.log('Suno API response data:', JSON.stringify(data, null, 2));
   
-  if (!data.success) {
-    throw new Error(`Suno API error: ${data.error || 'Unknown error'}`);
+  if (!data.success && data.success !== undefined) {
+    console.error('Suno API returned success=false:', data);
+    throw new Error(`Suno API error: ${data.error || data.message || 'Unknown error from API'}`);
+  }
+  
+  if (!data.data && !data.id && !data.task_id) {
+    console.error('Suno API response missing expected data structure:', data);
+    throw new Error(`Suno API error: Invalid response structure - ${JSON.stringify(data)}`);
   }
 
   const taskId = data.data?.task_id || data.data?.id;
