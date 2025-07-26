@@ -180,10 +180,10 @@ serve(async (req) => {
 
 function getDefaultModel(provider: string): string {
   switch (provider) {
-    case 'suno': return 'chirp-v4';
+    case 'suno': return 'V4_5'; // Correct Suno API model name
     case 'mureka': return 'mureka-v6';
     case 'test': return 'test';
-    default: return 'chirp-v4';
+    default: return 'V4_5';
   }
 }
 

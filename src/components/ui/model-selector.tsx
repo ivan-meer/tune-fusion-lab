@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Music, Zap, Star, Clock, DollarSign } from 'lucide-react';
 
-export type ModelType = 'chirp-v4' | 'chirp-v3.5' | 'chirp-v3' | 'mureka-v6' | 'test';
+export type ModelType = 'V4_5' | 'V4' | 'V3_5' | 'mureka-v6' | 'test';
 
 interface ModelInfo {
   id: ModelType;
@@ -20,35 +20,35 @@ interface ModelInfo {
 
 const modelConfigs: ModelInfo[] = [
   {
-    id: 'chirp-v4',
-    name: 'Chirp V4',
+    id: 'V4_5',
+    name: 'Suno V4.5',
     provider: 'Suno AI',
-    description: 'Новейшая модель Suno с высочайшим качеством звука',
-    features: ['Максимальное качество', 'Лучшая музыкальность', 'Четкий вокал'],
-    cost: 10,
+    description: 'Новейшая модель Suno с расширенными жанрами и улучшенным вокалом',
+    features: ['Максимальное качество', 'Расширенные жанры', 'Лучший вокал', 'До 5000 символов'],
+    cost: 15,
     duration: 'До 4 минут',
     quality: 5,
     icon: Sparkles
   },
   {
-    id: 'chirp-v3.5',
-    name: 'Chirp V3.5',
+    id: 'V4',
+    name: 'Suno V4',
     provider: 'Suno AI',
-    description: 'Стабильная модель с отличным качеством',
-    features: ['Быстрая генерация', 'Хорошее качество звука', 'Стабильность'],
-    cost: 8,
+    description: 'Продвинутая модель с высоким качеством вокала',
+    features: ['Отличное качество', 'Хороший вокал', 'Extend & Cover', 'Persona'],
+    cost: 10,
     duration: 'До 4 минут',
     quality: 4,
     icon: Sparkles
   },
   {
-    id: 'chirp-v3',
-    name: 'Chirp V3',
+    id: 'V3_5',
+    name: 'Suno V3.5',
     provider: 'Suno AI',
-    description: 'Базовая модель Suno для быстрой генерации',
-    features: ['Быстрая генерация', 'Экономичная', 'Надежная'],
-    cost: 5,
-    duration: 'До 2 минут',
+    description: 'Стабильная модель с хорошей структурой песен',
+    features: ['Быстрая генерация', 'Хорошая структура', 'Стабильность'],
+    cost: 8,
+    duration: 'До 4 минут',
     quality: 3,
     icon: Music
   },
@@ -86,7 +86,7 @@ interface ModelSelectorProps {
 export default function ModelSelector({ value, onChange, provider = 'all', showDetails = true }: ModelSelectorProps) {
   const availableModels = modelConfigs.filter(model => {
     if (provider === 'all') return true;
-    if (provider === 'suno') return model.id.startsWith('chirp-');
+    if (provider === 'suno') return ['V4_5', 'V4', 'V3_5'].includes(model.id);
     if (provider === 'mureka') return model.id.startsWith('mureka-');
     if (provider === 'test') return model.id === 'test';
     return true;

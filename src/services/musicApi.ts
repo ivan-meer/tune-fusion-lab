@@ -294,7 +294,7 @@ export class UnifiedMusicAPI {
 
   private async generateWithSuno(request: UnifiedMusicRequest): Promise<MusicGenerationResult> {
     const sunoRequest: SunoRequest = {
-      model: 'chirp-v4',
+      model: 'V4_5',
       prompt: request.prompt,
       customMode: !!request.advanced,
       makeInstrumental: !request.options.vocals,

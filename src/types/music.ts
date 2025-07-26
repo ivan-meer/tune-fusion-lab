@@ -100,7 +100,7 @@ export interface SunoV35Config {
 }
 
 export interface SunoV4Config {
-  version: 'chirp-v4';
+  version: 'V4';
   features: string[];
   enhanced: boolean;
 }
@@ -140,8 +140,8 @@ export interface StreamingConfig {
 
 export interface SunoIntegration {
   models: {
-    'chirp-v3-5': SunoV35Config;
-    'chirp-v4': SunoV4Config;
+    'V3_5': SunoV35Config;
+    'V4': SunoV4Config;
   };
   features: {
     musicGeneration: MusicGenerationConfig;
@@ -154,7 +154,7 @@ export interface SunoIntegration {
 }
 
 export interface SunoRequest {
-  model: 'chirp-v3-5' | 'chirp-v4';
+  model: 'V3_5' | 'V4' | 'V4_5';
   prompt?: string;
   lyrics?: string;
   customMode: boolean;
