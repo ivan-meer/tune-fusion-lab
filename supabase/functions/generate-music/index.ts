@@ -99,7 +99,10 @@ serve(async (req) => {
     console.log(`Created generation job: ${jobData.id}`);
 
     // Start background processing without waiting
-    EdgeRuntime.waitUntil(processGeneration(jobData.id, provider, model, prompt, style, duration, instrumental, lyrics, supabaseAdmin));
+    processGeneration(jobData.id, provider, model, prompt, style, duration, instrumental, lyrics, supabaseAdmin)
+      .catch(error => {
+        console.error(`Background processing failed for job ${jobData.id}:`, error);
+      });
     
     // Return immediate response
     return new Response(
