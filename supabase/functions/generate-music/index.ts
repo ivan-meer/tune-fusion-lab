@@ -380,6 +380,7 @@ async function generateWithSuno(
     prompt: prompt,
     title: prompt.slice(0, 80),
     model: model,
+    customMode: true, // ОБЯЗАТЕЛЬНЫЙ ПАРАМЕТР для Suno API
     make_instrumental: instrumental, // КРИТИЧЕСКИ ВАЖНО - НЕ УДАЛЯТЬ!
     callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
   };
