@@ -291,7 +291,7 @@ async function generateWithSuno(request: GenerationRequest) {
     prompt: request.lyrics ? `${request.prompt}. Lyrics: ${request.lyrics}` : request.prompt,
     customMode: true, // Required parameter according to API docs
     mv: "V3_5", // Correct model format: V3_5, V4, V4_5 or V4_5PLUS
-    make_instrumental: request.instrumental,
+    instrumental: request.instrumental || false, // Use 'instrumental' instead of 'make_instrumental'
     tags: request.style,
     title: request.prompt.slice(0, 80),
     wait_audio: false,
