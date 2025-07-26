@@ -46,12 +46,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Find the generation job by task ID
-    const { data: jobs, error: fetchError } = await supabase
+    // Find the generation job by task ID - try multiple approaches
+    console.log('Searching for job with taskId:', taskId);
+    
+    let jobs = null;
+    let fetchError = null;
+    
+    // First try: search in response_data->task_id
+    ({ data: jobs, error: fetchError } = await supabase
       .from('generation_jobs')
       .select('*')
       .eq('response_data->task_id', taskId)
-      .limit(1);
+      .limit(1));
+    
+    // Second try: search in request_params if first failed
+    if (!jobs || jobs.length === 0) {
+      console.log('Trying alternative search by request params...');
+      ({ data: jobs, error: fetchError } = await supabase
+        .from('generation_jobs')
+        .select('*')
+        .like('response_data', `%${taskId}%`)
+        .limit(1));
+    }
 
     if (fetchError) {
       console.error('Error fetching generation job:', fetchError);

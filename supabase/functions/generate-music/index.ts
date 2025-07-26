@@ -180,10 +180,10 @@ serve(async (req) => {
 
 function getDefaultModel(provider: string): string {
   switch (provider) {
-    case 'suno': return 'V4_5';
+    case 'suno': return 'chirp-v4';
     case 'mureka': return 'mureka-v6';
     case 'test': return 'test';
-    default: return 'V4_5';
+    default: return 'chirp-v4';
   }
 }
 
@@ -364,25 +364,23 @@ async function generateWithSuno(
     .update({ status: 'processing', progress: 40 })
     .eq('id', jobId);
 
-  // Simple Suno API request like the successful 14:54 call
-  const generateRequest = {
+  // Build simplified request payload (matching successful 14:54 request)
+  const generateRequest: any = {
     prompt: prompt,
     title: prompt.slice(0, 80),
     model: model,
-    make_instrumental: instrumental, // Already boolean from function parameter
-    customMode: !instrumental && !!finalLyrics, // Always boolean  
     callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
   };
-  
-  // Add lyrics if provided
-  if (!instrumental && finalLyrics) {
+
+  // Add lyrics only if they exist and are not empty string
+  if (finalLyrics && finalLyrics.trim()) {
     generateRequest.lyrics = finalLyrics;
   }
   
-  console.log('Optimized request payload:', JSON.stringify(generateRequest, null, 2));
-  console.log('Final values check:');
-  console.log('- make_instrumental type:', typeof generateRequest.make_instrumental, 'value:', generateRequest.make_instrumental);
-  console.log('- customMode type:', typeof generateRequest.customMode, 'value:', generateRequest.customMode);
+  console.log('=== SIMPLIFIED REQUEST PAYLOAD ===');
+  console.log(JSON.stringify(generateRequest, null, 2));
+  console.log('Parameters included:', Object.keys(generateRequest));
+  console.log('Lyrics present:', !!generateRequest.lyrics);
 
   const result = await retryApiCall(async () => {
     const response = await fetch('https://api.sunoapi.org/api/v1/generate', {
