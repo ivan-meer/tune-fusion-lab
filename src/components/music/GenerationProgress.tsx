@@ -135,7 +135,19 @@ export default function GenerationProgress({ job, onReset, onRetry }: Generation
         <div className="flex gap-2 pt-2">
           {job.status === 'completed' && job.track && (
             <Button 
-              onClick={() => playerActions.playTrack(job.track)} 
+              onClick={() => playerActions.playTrack({
+                id: job.track.id,
+                title: job.track.title,
+                file_url: job.track.file_url,
+                duration: job.track.duration,
+                tags: [],
+                is_public: false,
+                provider: 'suno' as const,
+                play_count: 0,
+                like_count: 0,
+                created_at: job.track.created_at,
+                updated_at: job.track.created_at
+              })}
               variant="default" 
               className="flex-1"
             >
