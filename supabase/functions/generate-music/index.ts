@@ -265,9 +265,8 @@ async function generateWithSuno(
   }
 
   console.log('Generating with Suno AI...');
-  console.log('API Key configured:', !!sunoApiKey);
 
-  // Using the correct Suno API endpoint and format
+  // Use SunoAPI.org endpoint with correct format
   const generateRequest = {
     prompt: lyrics ? `${prompt}. Lyrics: ${lyrics}` : prompt,
     tags: style,
@@ -278,47 +277,19 @@ async function generateWithSuno(
   
   console.log('Request payload:', JSON.stringify(generateRequest, null, 2));
 
-  // Try different API endpoints
-  const apiEndpoints = [
-    'https://api.sunoapi.net/api/v1/generate',
-    'https://api.sunoapi.com/api/v1/generate', 
-    'https://sunoapi.org/api/v1/generate'
-  ];
+  const response = await fetch('https://sunoapi.org/api/v1/generate', {
+    method: 'POST',
+    headers: {
+      'api-key': sunoApiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(generateRequest),
+  });
   
-  let response;
-  let lastError;
-  
-  for (const endpoint of apiEndpoints) {
-    try {
-      console.log(`Trying endpoint: ${endpoint}`);
-      response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'api-key': sunoApiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(generateRequest),
-      });
-      
-      if (response.ok) {
-        console.log(`Success with endpoint: ${endpoint}`);
-        break;
-      } else {
-        console.log(`Failed with endpoint ${endpoint}: ${response.status} ${response.statusText}`);
-        lastError = `HTTP ${response.status}: ${response.statusText}`;
-      }
-    } catch (error) {
-      console.log(`Error with endpoint ${endpoint}:`, error.message);
-      lastError = error.message;
-      continue;
-    }
-  }
-  
-  if (!response || !response.ok) {
-    const errorText = await response?.text() || '';
-    console.error('All Suno API endpoints failed. Last error:', lastError);
-    console.error('Response text:', errorText);
-    throw new Error(`Suno API error: ${lastError}. Response: ${errorText}`);
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Suno API error response:', errorText);
+    throw new Error(`Suno API error: ${response.status} ${response.statusText}. Response: ${errorText}`);
   }
 
   const data = await response.json();
@@ -341,7 +312,7 @@ async function generateWithSuno(
   while (attempts < maxAttempts) {
     await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds between polls
     
-    const statusResponse = await fetch(`https://api.sunoapi.net/api/v1/query?ids=${taskId}`, {
+    const statusResponse = await fetch(`https://sunoapi.org/api/v1/generate/record-info?ids=${taskId}`, {
       headers: {
         'api-key': sunoApiKey,
       },
@@ -354,13 +325,13 @@ async function generateWithSuno(
       if (statusData.success && statusData.data && statusData.data.length > 0) {
         const track = statusData.data[0];
         
-        if (track.status === 'streaming' && track.audio_url) {
+        if ((track.status === 'streaming' || track.status === 'SUCCESS') && track.audio_url) {
           generationResult = track;
           break;
         }
         
-        if (track.status === 'error') {
-          throw new Error('Suno generation failed with error');
+        if (track.status === 'GENERATE_AUDIO_FAILED' || track.status === 'CREATE_TASK_FAILED') {
+          throw new Error(`Suno generation failed: ${track.status}`);
         }
       }
     }
@@ -466,15 +437,19 @@ async function generateWithTest(
 ) {
   console.log('Generating test track...');
   
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  // Simulate realistic API call delay
+  await new Promise(resolve => setTimeout(resolve, 3000));
+  
+  // Generate more realistic test data
+  const trackId = `test_${Date.now()}`;
+  const shortPrompt = prompt.slice(0, 30);
   
   return {
-    id: `test_${Date.now()}`,
-    title: `Тестовый трек: ${prompt.slice(0, 30)}...`,
-    audioUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav', // Simple test audio
-    imageUrl: 'https://via.placeholder.com/300x300/6366f1/ffffff?text=Test+Track',
+    id: trackId,
+    title: `Test: ${shortPrompt}${shortPrompt.length < prompt.length ? '...' : ''}`,
+    audioUrl: 'https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3', // Working test audio
+    imageUrl: `https://picsum.photos/300/300?random=${trackId}`, // Random placeholder image
     duration: duration,
-    lyrics: instrumental ? undefined : (lyrics || 'Test lyrics for generated track')
+    lyrics: instrumental ? undefined : (lyrics || `Test lyrics for "${shortPrompt}":\n\nVerse 1:\nThis is a test track generated\nFor your music AI application\nThe melody flows like dreams\nIn digital realms\n\nChorus:\nTest track, test track\nPlaying back\nAll systems working\nNothing lacking`)
   };
 }
