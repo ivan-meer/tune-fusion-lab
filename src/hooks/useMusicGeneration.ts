@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export interface GenerationRequest {
   prompt: string;
-  provider: 'suno' | 'mureka';
+  provider: 'suno' | 'mureka' | 'test';
   style?: string;
   duration?: number;
   instrumental?: boolean;

@@ -48,7 +48,7 @@ function AudioPlayer({ src, title }: AudioPlayerProps) {
 
 export default function MusicStudio() {
   const [prompt, setPrompt] = useState('');
-  const [provider, setProvider] = useState<'mureka' | 'suno'>('suno');
+  const [provider, setProvider] = useState<'mureka' | 'suno' | 'test'>('test');
   const [style, setStyle] = useState('pop');
   const [duration, setDuration] = useState([60]);
   const [instrumental, setInstrumental] = useState(false);
@@ -194,7 +194,7 @@ export default function MusicStudio() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label>ИИ Провайдер</Label>
-                    <Select value={provider} onValueChange={(value: 'mureka' | 'suno') => setProvider(value)}>
+                    <Select value={provider} onValueChange={(value: 'mureka' | 'suno' | 'test') => setProvider(value)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -209,6 +209,12 @@ export default function MusicStudio() {
                           <div className="flex items-center gap-2">
                             <Music className="h-4 w-4" />
                             Mureka AI (15 кредитов)
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="test">
+                          <div className="flex items-center gap-2">
+                            <Zap className="h-4 w-4" />
+                            Тест (бесплатно)
                           </div>
                         </SelectItem>
                       </SelectContent>

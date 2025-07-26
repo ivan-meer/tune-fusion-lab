@@ -9,7 +9,7 @@ const corsHeaders = {
 
 interface GenerationRequest {
   prompt: string;
-  provider: 'suno' | 'mureka';
+  provider: 'suno' | 'mureka' | 'test';
   style?: string;
   duration?: number;
   instrumental?: boolean;
@@ -82,7 +82,7 @@ serve(async (req) => {
           instrumental,
           lyrics
         },
-        credits_used: provider === 'suno' ? 10 : 15
+        credits_used: provider === 'suno' ? 10 : provider === 'mureka' ? 15 : 0
       })
       .select()
       .single();
@@ -181,6 +181,8 @@ async function processGeneration(
       result = await generateWithSuno(prompt, style, duration, instrumental, lyrics);
     } else if (provider === 'mureka') {
       result = await generateWithMureka(prompt, style, duration, instrumental, lyrics);
+    } else if (provider === 'test') {
+      result = await generateWithTest(prompt, style, duration, instrumental, lyrics);
     } else {
       throw new Error('Invalid provider');
     }
@@ -263,6 +265,7 @@ async function generateWithSuno(
   }
 
   console.log('Generating with Suno AI...');
+  console.log('API Key configured:', !!sunoApiKey);
 
   // Using the correct Suno API endpoint and format
   const generateRequest = {
@@ -272,20 +275,50 @@ async function generateWithSuno(
     make_instrumental: instrumental,
     wait_audio: true
   };
+  
+  console.log('Request payload:', JSON.stringify(generateRequest, null, 2));
 
-  const response = await fetch('https://api.sunoapi.net/api/v1/generate', {
-    method: 'POST',
-    headers: {
-      'api-key': sunoApiKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(generateRequest),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Suno API error response:', errorText);
-    throw new Error(`Suno API error: ${response.status} ${errorText}`);
+  // Try different API endpoints
+  const apiEndpoints = [
+    'https://api.sunoapi.net/api/v1/generate',
+    'https://api.sunoapi.com/api/v1/generate', 
+    'https://sunoapi.org/api/v1/generate'
+  ];
+  
+  let response;
+  let lastError;
+  
+  for (const endpoint of apiEndpoints) {
+    try {
+      console.log(`Trying endpoint: ${endpoint}`);
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'api-key': sunoApiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(generateRequest),
+      });
+      
+      if (response.ok) {
+        console.log(`Success with endpoint: ${endpoint}`);
+        break;
+      } else {
+        console.log(`Failed with endpoint ${endpoint}: ${response.status} ${response.statusText}`);
+        lastError = `HTTP ${response.status}: ${response.statusText}`;
+      }
+    } catch (error) {
+      console.log(`Error with endpoint ${endpoint}:`, error.message);
+      lastError = error.message;
+      continue;
+    }
+  }
+  
+  if (!response || !response.ok) {
+    const errorText = await response?.text() || '';
+    console.error('All Suno API endpoints failed. Last error:', lastError);
+    console.error('Response text:', errorText);
+    throw new Error(`Suno API error: ${lastError}. Response: ${errorText}`);
   }
 
   const data = await response.json();
@@ -421,5 +454,27 @@ async function generateWithMureka(
     imageUrl: generationResult.output.cover_url,
     duration: generationResult.output.duration,
     lyrics: generationResult.output.lyrics
+  };
+}
+
+async function generateWithTest(
+  prompt: string,
+  style: string,
+  duration: number,
+  instrumental: boolean,
+  lyrics?: string
+) {
+  console.log('Generating test track...');
+  
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  return {
+    id: `test_${Date.now()}`,
+    title: `Тестовый трек: ${prompt.slice(0, 30)}...`,
+    audioUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav', // Simple test audio
+    imageUrl: 'https://via.placeholder.com/300x300/6366f1/ffffff?text=Test+Track',
+    duration: duration,
+    lyrics: instrumental ? undefined : (lyrics || 'Test lyrics for generated track')
   };
 }
