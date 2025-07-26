@@ -100,7 +100,7 @@ serve(async (req) => {
 
     // Process generation synchronously instead of background task
     try {
-      await processGeneration(jobData.id, provider, prompt, style, duration, instrumental, lyrics, supabaseAdmin);
+      await processGeneration(jobData.id, provider, model, prompt, style, duration, instrumental, lyrics, supabaseAdmin);
       
       // Get the updated job with track data
       const { data: updatedJob } = await supabaseAdmin
@@ -164,6 +164,7 @@ serve(async (req) => {
 async function processGeneration(
   jobId: string,
   provider: string,
+  model: string,
   prompt: string,
   style: string,
   duration: number,
