@@ -273,8 +273,14 @@ async function processGeneration(
 }
 
 async function generateWithSuno(request: GenerationRequest) {
+  console.log('=== Starting generateWithSuno ===');
+  console.log('Request object:', JSON.stringify(request, null, 2));
+  
   const sunoApiKey = Deno.env.get('SUNO_API_KEY');
+  console.log('Suno API key present:', !!sunoApiKey);
+  
   if (!sunoApiKey) {
+    console.error('SUNO_API_KEY not configured');
     throw new Error('SUNO_API_KEY not configured');
   }
 
