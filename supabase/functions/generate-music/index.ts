@@ -223,6 +223,7 @@ async function processGeneration(
       console.log('Calling optimized generateWithSuno...');
       result = await generateWithSuno(
         jobId,
+        model,
         prompt,
         style,
         duration,
@@ -309,6 +310,7 @@ async function processGeneration(
 
 async function generateWithSuno(
   jobId: string,
+  model: string,
   prompt: string,
   style: string,
   duration: number,
@@ -363,6 +365,7 @@ async function generateWithSuno(
   const generateRequest = {
     prompt: prompt,
     title: prompt.slice(0, 80),
+    model: model, // Add model parameter
     callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
   };
 
