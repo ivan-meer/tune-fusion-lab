@@ -159,7 +159,18 @@ serve(async (req) => {
         })
         .eq('id', jobData.id);
       
-      throw generationError;
+      // Return proper error response instead of throwing
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: generationError.message || 'Generation failed',
+          jobId: jobData.id
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
   } catch (error) {
