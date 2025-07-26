@@ -260,6 +260,59 @@ export type Database = {
         }
         Relationships: []
       }
+      generation_jobs: {
+        Row: {
+          created_at: string
+          credits_used: number
+          error_message: string | null
+          id: string
+          progress: number
+          provider: string
+          request_params: Json
+          response_data: Json | null
+          status: string
+          track_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_used?: number
+          error_message?: string | null
+          id?: string
+          progress?: number
+          provider: string
+          request_params: Json
+          response_data?: Json | null
+          status?: string
+          track_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_used?: number
+          error_message?: string | null
+          id?: string
+          progress?: number
+          provider?: string
+          request_params?: Json
+          response_data?: Json | null
+          status?: string
+          track_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generation_jobs_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           chat_id: string
@@ -291,6 +344,84 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      playlist_tracks: {
+        Row: {
+          added_at: string
+          id: string
+          playlist_id: string
+          position: number
+          track_id: string
+        }
+        Insert: {
+          added_at?: string
+          id?: string
+          playlist_id: string
+          position: number
+          track_id: string
+        }
+        Update: {
+          added_at?: string
+          id?: string
+          playlist_id?: string
+          position?: number
+          track_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_tracks_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_tracks_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      playlists: {
+        Row: {
+          cover_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_public: boolean
+          name: string
+          total_duration: number
+          track_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name: string
+          total_duration?: number
+          track_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name?: string
+          total_duration?: number
+          track_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -388,6 +519,119 @@ export type Database = {
           key?: string
           updated_at?: string
           value?: Json
+        }
+        Relationships: []
+      }
+      track_likes: {
+        Row: {
+          created_at: string
+          id: string
+          track_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          track_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          track_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "track_likes_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tracks: {
+        Row: {
+          artwork_url: string | null
+          audio_format: string | null
+          bpm: number | null
+          created_at: string
+          description: string | null
+          duration: number | null
+          file_path: string | null
+          file_size: number | null
+          file_url: string | null
+          generation_params: Json | null
+          genre: string | null
+          id: string
+          is_commercial: boolean
+          is_public: boolean
+          key_signature: string | null
+          like_count: number
+          lyrics: string | null
+          mood: string | null
+          play_count: number
+          provider: string
+          provider_track_id: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          artwork_url?: string | null
+          audio_format?: string | null
+          bpm?: number | null
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          file_path?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          generation_params?: Json | null
+          genre?: string | null
+          id?: string
+          is_commercial?: boolean
+          is_public?: boolean
+          key_signature?: string | null
+          like_count?: number
+          lyrics?: string | null
+          mood?: string | null
+          play_count?: number
+          provider: string
+          provider_track_id?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          artwork_url?: string | null
+          audio_format?: string | null
+          bpm?: number | null
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          file_path?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          generation_params?: Json | null
+          genre?: string | null
+          id?: string
+          is_commercial?: boolean
+          is_public?: boolean
+          key_signature?: string | null
+          like_count?: number
+          lyrics?: string | null
+          mood?: string | null
+          play_count?: number
+          provider?: string
+          provider_track_id?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

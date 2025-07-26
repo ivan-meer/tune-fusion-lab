@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,36 +14,13 @@ import {
   Zap,
   Heart
 } from 'lucide-react';
-// import MusicStudio from '@/components/MusicStudio';
-// import AudioPlayer from '@/components/AudioPlayer';
-// import TrackLibrary from '@/components/TrackLibrary';
-import AuthModal from '@/components/auth/AuthModal';
-import { useAuthStore } from '@/stores/authStore';
-import { useMusicStore } from '@/stores/musicStore';
+import { useAuth } from '@/components/auth/AuthProvider';
+import Header from '@/components/layout/Header';
+import MusicStudio from '@/components/music/MusicStudio';
 import heroImage from '@/assets/hero-music-ai.jpg';
 
 const Index = () => {
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [activeSection, setActiveSection] = useState<'hero' | 'studio' | 'library'>('hero');
-  
-  const { user, isAuthenticated, checkAuth } = useAuthStore();
-  const { tracks, loadUserTracks } = useMusicStore();
-
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadUserTracks();
-    }
-  }, [isAuthenticated, loadUserTracks]);
-
-  const openAuthModal = (mode: 'login' | 'register') => {
-    setAuthMode(mode);
-    setAuthModalOpen(true);
-  };
+  const { user, isLoading } = useAuth();
 
   const featuredTracks = [
     {
@@ -76,78 +52,41 @@ const Index = () => {
     }
   ];
 
-  // TODO: Добавить компоненты MusicStudio и TrackLibrary
-  // if (isAuthenticated && activeSection === 'studio') {
-  //   return <MusicStudio />;
-  // }
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Загрузка...</p>
+        </div>
+      </div>
+    );
+  }
 
-  // if (isAuthenticated && activeSection === 'library') {
-  //   return <TrackLibrary />;
-  // }
+  if (user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-4xl mx-auto">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold mb-2">
+                Добро пожаловать, {user.email?.split('@')[0]}!
+              </h1>
+              <p className="text-muted-foreground">
+                Создавайте невероятную музыку с помощью ИИ
+              </p>
+            </div>
+            <MusicStudio />
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      {/* Navigation */}
-      <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <motion.div 
-              className="flex items-center space-x-2"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-            >
-              <div className="p-2 rounded-lg bg-gradient-to-r from-primary to-accent">
-                <Music className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-xl font-bold gradient-text">
-                МузыкАИ Студия
-              </span>
-            </motion.div>
-
-            <div className="flex items-center space-x-4">
-              {isAuthenticated ? (
-                <>
-                  <Button
-                    variant={activeSection === 'hero' ? 'default' : 'ghost'}
-                    onClick={() => setActiveSection('hero')}
-                  >
-                    Главная
-                  </Button>
-                  <Button
-                    variant={activeSection === 'studio' ? 'default' : 'ghost'}
-                    onClick={() => setActiveSection('studio')}
-                  >
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    Студия
-                  </Button>
-                  <Button
-                    variant={activeSection === 'library' ? 'default' : 'ghost'}
-                    onClick={() => setActiveSection('library')}
-                  >
-                    <Music className="w-4 h-4 mr-2" />
-                    Библиотека
-                  </Button>
-                  <div className="flex items-center space-x-2 ml-4">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center text-white text-sm font-medium">
-                      {user?.username?.[0]?.toUpperCase()}
-                    </div>
-                    <span className="text-sm text-muted-foreground">{user?.credits} кредитов</span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Button variant="ghost" onClick={() => openAuthModal('login')}>
-                    Войти
-                  </Button>
-                  <Button onClick={() => openAuthModal('register')}>
-                    Начать
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Header />
 
       {/* Hero Section */}
       <section className="relative py-20 overflow-hidden">
@@ -181,34 +120,25 @@ const Index = () => {
               </div>
 
               <div className="flex flex-wrap gap-4">
-                {!isAuthenticated ? (
-                  <>
-                    <Button 
-                      size="lg" 
-                      className="bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary"
-                      onClick={() => openAuthModal('register')}
-                    >
-                      <Play className="w-5 h-5 mr-2" />
-                      Начать Создавать
-                    </Button>
-                    <Button 
-                      size="lg" 
-                      variant="outline"
-                      onClick={() => openAuthModal('login')}
-                    >
-                      Войти
-                    </Button>
-                  </>
-                ) : (
-                  <Button 
-                    size="lg" 
-                    className="bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary"
-                    onClick={() => setActiveSection('studio')}
-                  >
-                    <Sparkles className="w-5 h-5 mr-2" />
-                    Открыть Студию
-                  </Button>
-                )}
+                <Button 
+                  size="lg" 
+                  className="bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary"
+                  asChild
+                >
+                  <a href="/auth">
+                    <Play className="w-5 h-5 mr-2" />
+                    Начать Создавать
+                  </a>
+                </Button>
+                <Button 
+                  size="lg" 
+                  variant="outline"
+                  asChild
+                >
+                  <a href="/auth">
+                    Войти
+                  </a>
+                </Button>
               </div>
 
               {/* Stats */}
@@ -404,49 +334,44 @@ const Index = () => {
       </section>
 
       {/* CTA Section */}
-      {!isAuthenticated && (
-        <section className="py-20 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              className="space-y-8"
-            >
-              <h2 className="text-3xl font-bold">
-                Готовы создать свой первый ИИ-трек?
-              </h2>
-              <p className="text-xl text-muted-foreground">
-                Присоединяйтесь к тысячам артистов, создающих удивительную музыку с ИИ
-              </p>
-              <div className="flex flex-wrap justify-center gap-4">
-                <Button 
-                  size="lg"
-                  className="bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary"
-                  onClick={() => openAuthModal('register')}
-                >
+      <section className="py-20 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="space-y-8"
+          >
+            <h2 className="text-3xl font-bold">
+              Готовы создать свой первый ИИ-трек?
+            </h2>
+            <p className="text-xl text-muted-foreground">
+              Присоединяйтесь к тысячам артистов, создающих удивительную музыку с ИИ
+            </p>
+            <div className="flex flex-wrap justify-center gap-4">
+              <Button 
+                size="lg"
+                className="bg-gradient-to-r from-primary to-accent hover:opacity-90 glow-primary"
+                asChild
+              >
+                <a href="/auth">
                   <Sparkles className="w-5 h-5 mr-2" />
                   Начать Бесплатно
-                </Button>
-                <Button 
-                  size="lg" 
-                  variant="outline"
-                  onClick={() => openAuthModal('login')}
-                >
-                  Войти
-                </Button>
-              </div>
-            </motion.div>
-          </div>
-        </section>
-      )}
-
-      {/* Auth Modal */}
-      <AuthModal 
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        defaultMode={authMode}
-      />
+                </a>
+              </Button>
+              <Button 
+                size="lg" 
+                variant="outline"
+                asChild
+              >
+                <a href="/auth">
+                  У меня есть аккаунт
+                </a>
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      </section>
     </div>
   );
 };
