@@ -264,17 +264,16 @@ async function generateWithSuno(
 
   console.log('Generating with Suno AI...');
 
-  // Using the working Suno API implementation with callback URL
+  // Using the correct Suno API endpoint and format
   const generateRequest = {
     prompt: lyrics ? `${prompt}. Lyrics: ${lyrics}` : prompt,
     tags: style,
     title: prompt.slice(0, 80),
     make_instrumental: instrumental,
-    wait_audio: true,
-    callBackUrl: ""  // Empty string as required by API
+    wait_audio: true
   };
 
-  const response = await fetch('https://api.sunoapi.net/api/v1/gateway/generate/music', {
+  const response = await fetch('https://api.sunoapi.net/api/v1/generate', {
     method: 'POST',
     headers: {
       'api-key': sunoApiKey,
@@ -309,7 +308,7 @@ async function generateWithSuno(
   while (attempts < maxAttempts) {
     await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds between polls
     
-    const statusResponse = await fetch(`https://api.sunoapi.net/api/v1/gateway/query?ids=${taskId}`, {
+    const statusResponse = await fetch(`https://api.sunoapi.net/api/v1/query?ids=${taskId}`, {
       headers: {
         'api-key': sunoApiKey,
       },

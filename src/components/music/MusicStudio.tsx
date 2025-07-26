@@ -13,6 +13,7 @@ import { useMusicGeneration, GenerationRequest } from '@/hooks/useMusicGeneratio
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import GenerationProgress from './GenerationProgress';
+import { useToast } from '@/hooks/use-toast';
 import { Wand2, Sparkles, Music, Play, Download, Share, Shuffle, Zap } from 'lucide-react';
 
 interface AudioPlayerProps {
@@ -55,6 +56,7 @@ export default function MusicStudio() {
   
   const { user } = useAuth();
   const { generateMusic, resetGeneration, isGenerating, currentJob } = useMusicGeneration();
+  const { toast } = useToast();
   
   // Real-time updates for generation jobs
   useRealtimeUpdates({
@@ -286,20 +288,31 @@ export default function MusicStudio() {
                     const { data, error } = await supabase.functions.invoke('test-auth');
                     console.log('Test auth result:', { data, error });
                     if (data?.success) {
-                      alert('Аутентификация работает!');
+                      toast({
+                        title: "Аутентификация работает!",
+                        description: "Соединение с сервером установлено"
+                      });
                     } else {
-                      alert(`Ошибка аутентификации: ${data?.error || error?.message}`);
+                      toast({
+                        title: "Ошибка аутентификации",
+                        description: data?.error || error?.message,
+                        variant: "destructive"
+                      });
                     }
                   } catch (err) {
                     console.error('Test auth error:', err);
-                    alert(`Ошибка: ${err.message}`);
+                    toast({
+                      title: "Ошибка соединения",
+                      description: `${err.message}`,
+                      variant: "destructive"
+                    });
                   }
                 }}
                 variant="outline"
                 className="w-full"
                 size="sm"
               >
-                Тест аутентификации
+                Тест соединения
               </Button>
             </>
           ) : (
