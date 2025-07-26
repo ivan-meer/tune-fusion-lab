@@ -17,6 +17,7 @@ import {
 import { useAuth } from '@/components/auth/AuthProvider';
 import Header from '@/components/layout/Header';
 import MusicStudio from '@/components/music/MusicStudio';
+import MusicAidPro from '@/components/music/MusicAidPro';
 import heroImage from '@/assets/hero-music-ai.jpg';
 
 const Index = () => {
@@ -67,18 +68,8 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <main className="container mx-auto px-4 py-8">
-          <div className="max-w-4xl mx-auto">
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold mb-2">
-                Добро пожаловать, {user.email?.split('@')[0]}!
-              </h1>
-              <p className="text-muted-foreground">
-                Создавайте невероятную музыку с помощью ИИ
-              </p>
-            </div>
-            <MusicStudio />
-          </div>
+        <main className="py-4">
+          <MusicAidPro />
         </main>
       </div>
     );
