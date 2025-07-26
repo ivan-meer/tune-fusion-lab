@@ -127,10 +127,13 @@ export function useTrackStorage(): TrackStorageOperations & {
 
       await Promise.all(updatePromises);
 
-      toast({
-        title: "Синхронизация завершена",
-        description: `Обновлено ${tracks.length} треков`,
-      });
+      // Only show toast for manual sync operations (when trackId is not provided)
+      if (!trackId) {
+        toast({
+          title: "Синхронизация завершена",
+          description: `Обновлено ${tracks.length} треков`,
+        });
+      }
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to sync track URLs';

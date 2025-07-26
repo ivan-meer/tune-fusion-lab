@@ -126,6 +126,7 @@ export function useUserTracks() {
       // Automatically sync storage URLs if requested
       if (syncStorage && transformedTracks.length > 0) {
         // Don't await this to avoid blocking the UI
+        // FIXED: Only sync URLs that need updating, don't reload after sync
         trackStorage.syncTrackUrls().catch(console.error);
       }
 
