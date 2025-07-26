@@ -321,32 +321,66 @@ async function generateWithSuno(request: GenerationRequest) {
   }
 
   const data = await response.json();
-  console.log('Suno API response data:', JSON.stringify(data, null, 2));
+  console.log('=== SUNO API RESPONSE START ===');
+  console.log('Response status:', response.status);
+  console.log('Response data:', JSON.stringify(data, null, 2));
+  console.log('=== SUNO API RESPONSE END ===');
   
-  if (!data.success && data.success !== undefined) {
-    console.error('Suno API returned success=false:', data);
-    throw new Error(`Suno API error: ${data.error || data.message || 'Unknown error from API'}`);
+  // Handle successful response with success flag
+  if (data.success === true || data.code === 200) {
+    console.log('Suno API returned success');
+    
+    // Try multiple ways to extract task ID
+    let taskId = null;
+    if (data.data) {
+      taskId = data.data.task_id || data.data.id || data.data.taskId;
+      if (Array.isArray(data.data) && data.data.length > 0) {
+        taskId = data.data[0].task_id || data.data[0].id || data.data[0].taskId;
+      }
+    }
+    if (!taskId) {
+      taskId = data.task_id || data.id || data.taskId;
+    }
+    
+    console.log('Extracted task ID:', taskId);
+    
+    if (!taskId) {
+      console.error('=== NO TASK ID FOUND ===');
+      console.error('Full response structure:');
+      console.error('Type of data:', typeof data);
+      console.error('Keys in data:', Object.keys(data));
+      if (data.data) {
+        console.error('Type of data.data:', typeof data.data);
+        if (Array.isArray(data.data)) {
+          console.error('data.data is array with length:', data.data.length);
+          if (data.data.length > 0) {
+            console.error('Keys in data.data[0]:', Object.keys(data.data[0]));
+          }
+        } else {
+          console.error('Keys in data.data:', Object.keys(data.data));
+        }
+      }
+      throw new Error(`No task ID found in Suno API response: ${JSON.stringify(data)}`);
+    }
+    
+    console.log('Successfully extracted task ID:', taskId);
+    return await pollSunoGeneration(taskId);
+    
+  } else {
+    console.error('Suno API returned error:', data);
+    throw new Error(`Suno API error: ${data.error || data.message || data.msg || 'Unknown error'}`);
   }
+}
+
+async function pollSunoGeneration(taskId: string) {
+  console.log('Starting to poll for generation status with taskId:', taskId);
   
-  if (!data.data && !data.id && !data.task_id) {
-    console.error('Suno API response missing expected data structure:', data);
-    throw new Error(`Suno API error: Invalid response structure - ${JSON.stringify(data)}`);
+  const sunoApiKey = Deno.env.get('SUNO_API_KEY');
+  if (!sunoApiKey) {
+    throw new Error('SUNO_API_KEY not configured');
   }
 
-  const taskId = data.data?.task_id || data.data?.id || data.task_id || data.id;
-  console.log('Extracted task ID:', taskId);
-  console.log('Available data keys:', Object.keys(data));
-  if (data.data) {
-    console.log('Available data.data keys:', Object.keys(data.data));
-  }
-  
-  if (!taskId) {
-    console.error('No task ID found in response. Full response:', JSON.stringify(data, null, 2));
-    throw new Error('No task ID received from Suno API');
-  }
-  
-  // Poll for completion
-  let generationResult;
+  let generationResult = null;
   let attempts = 0;
   const maxAttempts = 60;
 
@@ -392,7 +426,7 @@ async function generateWithSuno(request: GenerationRequest) {
 
   return {
     id: generationResult.id || taskId,
-    title: generationResult.title || request.prompt.slice(0, 50),
+    title: generationResult.title || 'Generated Track',
     audioUrl: generationResult.audio_url,
     imageUrl: generationResult.image_url,
     duration: generationResult.duration || 120,
