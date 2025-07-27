@@ -48,7 +48,11 @@ Deno.serve(async (req) => {
 
     // Get Suno API key
     const sunoApiKey = Deno.env.get('SUNO_API_KEY');
+    console.log('SUNO_API_KEY available:', !!sunoApiKey);
+    console.log('SUNO_API_KEY length:', sunoApiKey ? sunoApiKey.length : 0);
+    
     if (!sunoApiKey) {
+      console.error('SUNO_API_KEY is missing from environment variables');
       return new Response(
         JSON.stringify({ error: 'Suno API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -71,7 +75,7 @@ Deno.serve(async (req) => {
       callBackUrl: callbackUrl
     };
 
-    console.log('Sending LYRICS-ONLY request to Suno API:', JSON.stringify(requestBody, null, 2));
+    console.log('Sending LYRICS-ONLY request to Suno API:', JSON.stringify({...requestBody, callBackUrl: '[REDACTED]'}, null, 2));
 
     const lyricsResponse = await fetch('https://api.sunoapi.org/api/v1/generate', {
       method: 'POST',
