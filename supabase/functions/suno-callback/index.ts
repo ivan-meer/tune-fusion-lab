@@ -9,24 +9,30 @@ interface CallbackData {
   code: number;
   msg: string;
   data: {
-    callbackType: 'complete' | 'error' | 'processing';
+    callbackType: 'complete' | 'error' | 'processing' | 'text';
     task_id?: string;
     taskId?: string;
     // For music generation
     data?: Array<{
       id: string;
-      audio_url: string;
-      source_audio_url: string;
-      stream_audio_url: string;
-      source_stream_audio_url: string;
-      image_url: string;
-      source_image_url: string;
+      audio_url?: string;
+      source_audio_url?: string;
+      stream_audio_url?: string;
+      source_stream_audio_url?: string;
+      image_url?: string;
+      source_image_url?: string;
       prompt: string;
       model_name: string;
       title: string;
-      tags: string;
+      tags?: string;
       createTime: string;
-      duration: number;
+      duration?: number;
+      // Additional fields for lyrics
+      text?: string;
+      lyrics?: string;
+      content?: string;
+      lyric_text?: string;
+      generated_text?: string;
     }> | null;
     // For lyrics generation
     lyricsData?: Array<{
@@ -168,29 +174,55 @@ Deno.serve(async (req) => {
       console.log('Processing lyrics callback for record:', lyricsRecord.id);
       console.log('Callback status:', status, 'Data structure:', JSON.stringify(data, null, 2));
       
-      if (status === 'complete' && data.data && data.data.length > 0) {
+      // Handle both 'complete' and 'text' callbackType for lyrics
+      if ((status === 'complete' || status === 'text') && data.data && data.data.length > 0) {
         console.log('Processing complete lyrics callback');
         
         // For lyrics generation, extract the actual lyrics text
         const firstItem = data.data[0];
         let lyricsContent = '';
         
-        // Try to extract lyrics from various possible fields
+        // Try to extract lyrics from various possible fields in priority order
         if (firstItem.text) {
           lyricsContent = firstItem.text;
         } else if (firstItem.lyrics) {
           lyricsContent = firstItem.lyrics;
+        } else if (firstItem.lyric_text) {
+          lyricsContent = firstItem.lyric_text;
         } else if (firstItem.content) {
           lyricsContent = firstItem.content;
         } else if (firstItem.generated_text) {
           lyricsContent = firstItem.generated_text;
+        } else if (firstItem.prompt && (firstItem.prompt.includes('[Verse]') || firstItem.prompt.includes('[Chorus]'))) {
+          // If prompt contains lyric structure, use it
+          lyricsContent = firstItem.prompt;
         } else {
           // Check if this is actually a music generation by looking for audio_url
           if (firstItem.audio_url) {
             console.log('Detected music generation instead of lyrics - extracting prompt as lyrics');
             lyricsContent = firstItem.prompt || 'Музыка сгенерирована, но текст лирики не получен';
           } else {
-            lyricsContent = 'Лирика сгенерирована, но текст не получен в ожидаемом формате.';
+            lyricsContent = firstItem.prompt || 'Лирика сгенерирована, но текст не получен в ожидаемом формате.';
+          }
+        }
+        
+        // Clean up the lyrics content if it's too long or contains generation instructions
+        if (lyricsContent && lyricsContent.length > 2000) {
+          // If content is very long, it might be generation instructions rather than lyrics
+          const lines = lyricsContent.split('\n');
+          const lyricLines = lines.filter(line => 
+            line.includes('[Verse]') || 
+            line.includes('[Chorus]') || 
+            line.includes('[Bridge]') || 
+            line.includes('[Outro]') ||
+            line.includes('[Intro]') ||
+            (!line.includes('Требования:') && !line.includes('Создай') && line.trim().length > 0)
+          );
+          
+          if (lyricLines.length > 0) {
+            lyricsContent = lyricLines.join('\n');
+          } else {
+            lyricsContent = 'Генерация завершена, но текст песни не найден. Попробуйте еще раз.';
           }
         }
         
