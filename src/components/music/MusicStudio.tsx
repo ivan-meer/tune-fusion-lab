@@ -157,27 +157,10 @@ export default function MusicStudio() {
     setIsGeneratingLyrics(true);
 
     try {
-      // Создаем профессиональный промпт для генерации лирики с тегами Suno AI
-      const lyricsPrompt = `Создай профессиональную лирику для ${style} песни на тему: "${prompt}". 
+      // Создаем краткий промпт для генерации лирики (макс 200 символов для Suno API)
+      const lyricsPrompt = `${style} песня о ${prompt.substring(0, 100)}...`.substring(0, 200);
       
-Требования:
-- Структура: [Verse], [Chorus], [Verse], [Chorus], [Bridge], [Chorus], [Outro]
-- Язык: русский
-- Стиль: ${style}
-- Настроение соответствует описанию: ${prompt}
-- Добавь теги в формате Suno AI в начале
-- Рифмы должны быть естественными и красивыми
-- Текст должен быть эмоциональным и запоминающимся
-- Используй современную поэтику
-
-Пример структуры с тегами:
-[Intro]
-[Verse]
-текст куплета...
-[Chorus]  
-текст припева...
-
-Создай полноценный текст песни с правильной структурой и тегами.`;
+      console.log('Generating lyrics with prompt:', lyricsPrompt, 'Length:', lyricsPrompt.length);
 
       const { data, error } = await supabase.functions.invoke('generate-lyrics', {
         body: { 
