@@ -16,7 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import GenerationProgress from './GenerationProgress';
 import { useToast } from '@/hooks/use-toast';
-import { Wand2, Sparkles, Music2, Download, Share2, Shuffle, Zap, Settings, Mic, Volume2 } from 'lucide-react';
+import { Wand2, Sparkles, Music2, Download, Share2, Shuffle, Zap, Settings, Mic, Volume2, FileText } from 'lucide-react';
 import AdvancedMusicStudio from './AdvancedMusicStudio';
 
 interface AudioPlayerProps {
@@ -63,6 +63,7 @@ export default function MusicStudio() {
   const [showAdmin, setShowAdmin] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isGeneratingLyrics, setIsGeneratingLyrics] = useState(false);
   
   const { user } = useAuth();
   const { generateMusic, resetGeneration, isGenerating, currentJob } = useMusicGeneration();
@@ -141,6 +142,71 @@ export default function MusicStudio() {
     }
     
     setIsEnhancing(false);
+  };
+
+  const generateLyrics = async () => {
+    if (!prompt.trim()) {
+      toast({
+        title: "Укажите описание",
+        description: "Опишите тему или настроение для генерации лирики",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGeneratingLyrics(true);
+
+    try {
+      // Создаем профессиональный промпт для генерации лирики с тегами Suno AI
+      const lyricsPrompt = `Создай профессиональную лирику для ${style} песни на тему: "${prompt}". 
+      
+Требования:
+- Структура: [Verse], [Chorus], [Verse], [Chorus], [Bridge], [Chorus], [Outro]
+- Язык: русский
+- Стиль: ${style}
+- Настроение соответствует описанию: ${prompt}
+- Добавь теги в формате Suno AI в начале
+- Рифмы должны быть естественными и красивыми
+- Текст должен быть эмоциональным и запоминающимся
+- Используй современную поэтику
+
+Пример структуры с тегами:
+[Intro]
+[Verse]
+текст куплета...
+[Chorus]  
+текст припева...
+
+Создай полноценный текст песни с правильной структурой и тегами.`;
+
+      const { data, error } = await supabase.functions.invoke('generate-lyrics', {
+        body: { 
+          prompt: lyricsPrompt,
+          style: style,
+          language: 'russian',
+          structure: 'verse-chorus'
+        }
+      });
+
+      if (data?.success && data.lyrics?.content) {
+        setLyrics(data.lyrics.content);
+        toast({
+          title: "🎤 Лирика сгенерирована!",
+          description: "Текст песни создан с помощью ИИ"
+        });
+      } else {
+        throw new Error(data?.error || error?.message || 'Не удалось сгенерировать лирику');
+      }
+    } catch (error) {
+      console.error('Lyrics generation error:', error);
+      toast({
+        title: "❌ Ошибка генерации лирики",
+        description: error.message || "Попробуйте еще раз",
+        variant: "destructive"
+      });
+    }
+
+    setIsGeneratingLyrics(false);
   };
 
   const handleGenerate = async () => {
@@ -427,14 +493,27 @@ export default function MusicStudio() {
                         transition={{ duration: 0.3 }}
                         className="space-y-3"
                       >
-                        <Label className="text-sm font-medium text-muted-foreground">
-                          Текст песни (опционально)
-                        </Label>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium text-muted-foreground">
+                            Текст песни (опционально)
+                          </Label>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={generateLyrics}
+                            disabled={isGeneratingLyrics || !prompt.trim()}
+                            className="hover:bg-white/10 border border-white/20"
+                          >
+                            <FileText className={`h-4 w-4 mr-2 ${isGeneratingLyrics ? 'animate-pulse text-blue-400' : ''}`} />
+                            {isGeneratingLyrics ? 'Генерирую...' : 'Сгенерировать с ИИ'}
+                          </Button>
+                        </div>
                         <Textarea
-                          placeholder="Введите текст песни или оставьте пустым для автогенерации..."
+                          placeholder="Введите текст песни или нажмите 'Сгенерировать с ИИ' для автогенерации..."
                           value={lyrics}
                           onChange={(e) => setLyrics(e.target.value)}
-                          rows={4}
+                          rows={6}
                           className="glassmorphism border-white/20 bg-white/5 backdrop-blur-sm resize-none"
                         />
                       </motion.div>
