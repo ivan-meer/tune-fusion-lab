@@ -406,6 +406,7 @@ export default function TrackLibrary() {
                   track={track}
                   viewMode={viewMode}
                   isCurrentlyPlaying={playerState.currentTrack?.id === track.id}
+                  isPlaying={playerState.currentTrack?.id === track.id && playerState.isPlaying}
                   onLike={() => handleLike(track.id)}
                   onDelete={() => handleDelete(track.id, track.title)}
                   onDownload={() => handleDownload(track)}

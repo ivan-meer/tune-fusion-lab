@@ -45,6 +45,8 @@ export interface TrackCardProps {
   viewMode: 'grid' | 'list';
   /** Whether this track is currently playing globally */
   isCurrentlyPlaying?: boolean;
+  /** Whether this track is currently in playing state */
+  isPlaying?: boolean;
   /** Callback when user likes/unlikes track */
   onLike: () => void;
   /** Callback when user requests track deletion */
@@ -253,8 +255,6 @@ function PlayButtonOverlay({
   onPause, 
   className 
 }: PlayButtonOverlayProps) {
-  const showOverlay = isCurrentTrack || 'group-hover';
-
   return (
     <Button
       size="sm"
@@ -286,6 +286,7 @@ function PlayButtonOverlay({
 function ListViewLayout({ 
   track, 
   isCurrentlyPlaying, 
+  isPlaying,
   onLike, 
   onDelete, 
   onDownload, 
@@ -294,7 +295,6 @@ function ListViewLayout({
   className 
 }: TrackCardProps) {
   const isCurrentTrack = isCurrentlyPlaying;
-  const isPlaying = isCurrentTrack; // For now, assume playing if current
 
   /**
    * Handle track playback
@@ -373,6 +373,7 @@ function ListViewLayout({
 function GridViewLayout({ 
   track, 
   isCurrentlyPlaying, 
+  isPlaying,
   onLike, 
   onDelete, 
   onDownload, 
@@ -381,7 +382,6 @@ function GridViewLayout({
   className 
 }: TrackCardProps) {
   const isCurrentTrack = isCurrentlyPlaying;
-  const isPlaying = isCurrentTrack;
 
   /**
    * Handle track playback

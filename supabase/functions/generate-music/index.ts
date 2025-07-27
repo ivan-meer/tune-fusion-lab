@@ -379,7 +379,7 @@ async function generateWithSuno(
   console.log('Lyrics present:', !!generateRequest.lyrics);
 
   const result = await retryApiCall(async () => {
-    const response = await fetch('https://api.sunoapi.org/api/v1/music/generate', {
+    const response = await fetch('https://api.sunoapi.org/api/v1/generate', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
