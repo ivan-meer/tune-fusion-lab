@@ -1,5 +1,9 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import { EnhancedButton } from '@/components/ui/enhanced-button';
+import { AnimatedCard } from '@/components/ui/animated-card';
+import { PageTransition } from '@/components/ui/page-transition';
+import { AudioVisualizer } from '@/components/ui/audio-visualizer';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
@@ -94,7 +98,8 @@ const Index = () => {
   const heroOpacity = useTransform(scrollY, [0, 300], [1, 0.8]);
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
+    <PageTransition>
+      <div className="min-h-screen relative overflow-hidden">
       {/* Neural Network Background */}
       <NeuralNetworkBg className="fixed inset-0 z-0" />
       
@@ -164,39 +169,42 @@ const Index = () => {
                 </p>
               </motion.div>
 
-              {/* CTA Buttons */}
+              {/* Enhanced CTA Buttons */}
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.6 }}
-                className="flex flex-col gap-4 justify-center items-center px-4"
+                className="flex flex-col sm:flex-row gap-4 justify-center items-center px-4"
               >
                 <MagneticHover>
-                  <Button 
+                  <EnhancedButton 
                     size="lg" 
-                    className="w-full sm:w-auto px-8 sm:px-12 py-4 sm:py-6 text-base sm:text-lg bg-gradient-to-r from-primary to-primary-variant hover:opacity-90 glow-intense group relative overflow-hidden"
+                    variant="primary"
+                    withGlow
+                    magnetic
+                    className="w-full sm:w-auto px-8 sm:px-12 py-4 sm:py-6 text-base sm:text-lg"
                     asChild
                   >
                     <a href="/auth" className="flex items-center justify-center">
-                      <Play className="w-5 sm:w-6 h-5 sm:h-6 mr-2 sm:mr-3 group-hover:scale-110 transition-transform" />
+                      <Play className="w-5 sm:w-6 h-5 sm:h-6 mr-2 sm:mr-3" />
                       <span className="hidden sm:inline">Создать Первый Трек</span>
                       <span className="sm:hidden">Создать Трек</span>
-                      <ArrowRight className="w-4 sm:w-5 h-4 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                      <ArrowRight className="w-4 sm:w-5 h-4 sm:h-5 ml-2" />
                     </a>
-                  </Button>
+                  </EnhancedButton>
                 </MagneticHover>
                 
-                <Button 
+                <EnhancedButton 
                   size="lg" 
-                  variant="outline"
-                  className="w-full sm:w-auto px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg glassmorphism border-primary/30 hover-glow"
+                  variant="glass"
+                  className="w-full sm:w-auto px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg"
                   asChild
                 >
                   <a href="#demo" className="flex items-center justify-center">
                     <Waves className="w-5 h-5 mr-2" />
                     Смотреть Демо
                   </a>
-                </Button>
+                </EnhancedButton>
               </motion.div>
 
               {/* Stats Counter */}
@@ -330,7 +338,12 @@ const Index = () => {
             <StaggeredReveal className="grid md:grid-cols-3 gap-8" delay={0.15}>
               {featuredTracks.map((track, index) => (
                 <MagneticHover key={track.id} strength={15}>
-                  <Card className="glassmorphism-strong hover-glow group cursor-pointer relative overflow-hidden border-border/10">
+                  <AnimatedCard 
+                    variant="glass" 
+                    hover3d 
+                    glowEffect 
+                    className="group cursor-pointer relative overflow-hidden border-border/10"
+                  >
                     <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     
                     <CardContent className="p-8 relative z-10">
@@ -382,32 +395,16 @@ const Index = () => {
                         </span>
                       </div>
 
-                      {/* Waveform visualization placeholder */}
+                      {/* Enhanced Audio Visualizer */}
                       <div className="mt-6 h-12 bg-muted/20 rounded-lg flex items-center justify-center overflow-hidden relative">
-                        <div className="flex items-end space-x-1 opacity-50 group-hover:opacity-100 transition-opacity duration-500">
-                          {Array.from({ length: 20 }).map((_, i) => (
-                            <motion.div
-                              key={i}
-                              className="w-1 bg-gradient-to-t from-primary to-accent rounded-full"
-                              style={{ height: `${Math.random() * 100 + 20}%` }}
-                              animate={{
-                                height: [
-                                  `${Math.random() * 100 + 20}%`,
-                                  `${Math.random() * 100 + 20}%`,
-                                  `${Math.random() * 100 + 20}%`
-                                ]
-                              }}
-                              transition={{
-                                duration: 2,
-                                repeat: Infinity,
-                                delay: i * 0.1
-                              }}
-                            />
-                          ))}
-                        </div>
+                        <AudioVisualizer 
+                          isPlaying={false} 
+                          barCount={20} 
+                          className="group-hover:opacity-100 opacity-50 transition-opacity duration-500" 
+                        />
                       </div>
                     </CardContent>
-                  </Card>
+                  </AnimatedCard>
                 </MagneticHover>
               ))}
             </StaggeredReveal>
@@ -694,6 +691,7 @@ const Index = () => {
         </section>
       </div>
     </div>
+    </PageTransition>
   );
 };
 
