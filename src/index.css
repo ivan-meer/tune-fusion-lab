@@ -437,6 +437,32 @@ All colors MUST be HSL.
     animation: loading-pulse 1.5s ease-in-out infinite;
   }
 
+  /* Modern audio player styles */
+  .modern-audio-player {
+    background: linear-gradient(145deg, hsl(var(--background)) 0%, hsl(var(--muted)) 100%);
+    border-radius: 12px;
+    border: 1px solid hsl(var(--border));
+    padding: 8px;
+    filter: drop-shadow(0 4px 12px hsl(var(--primary) / 0.1));
+  }
+
+  .modern-audio-player::-webkit-media-controls-panel {
+    background: transparent;
+  }
+
+  /* Enhanced gradient button */
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-variant)) 50%, hsl(var(--accent)) 100%);
+    border: none;
+    box-shadow: 0 4px 16px hsl(var(--primary) / 0.3);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .gradient-primary:hover {
+    box-shadow: 0 8px 24px hsl(var(--primary) / 0.4);
+    transform: translateY(-2px);
+  }
+
   /* Additional Keyframes */
   @keyframes neon-pulse {
     0%, 100% { 

@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatedCard } from '@/components/ui/animated-card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+import { AudioVisualizer } from '@/components/ui/audio-visualizer';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useMusicGeneration, GenerationRequest } from '@/hooks/useMusicGeneration';
 import ModelSelector, { ModelType } from '@/components/ui/model-selector';
@@ -16,7 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import GenerationProgress from './GenerationProgress';
 import { useToast } from '@/hooks/use-toast';
-import { Wand2, Sparkles, Music, Play, Download, Share, Shuffle, Zap, ArrowRight } from 'lucide-react';
+import { Wand2, Sparkles, Music2, Download, Share2, Shuffle, Zap, Settings, Mic, Volume2 } from 'lucide-react';
 import AdvancedMusicStudio from './AdvancedMusicStudio';
 
 interface AudioPlayerProps {
@@ -24,30 +24,31 @@ interface AudioPlayerProps {
   title: string;
 }
 
-// Simple audio player component
+// Elegant audio player component
 function AudioPlayer({ src, title }: AudioPlayerProps) {
   return (
-    <div className="space-y-3">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <h4 className="font-medium text-sm sm:text-base">{title}</h4>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Button size="sm" variant="outline" className="flex-1 sm:flex-none">
-            <Download className="h-4 w-4 mr-1" />
-            <span className="hidden sm:inline">Скачать</span>
-            <span className="sm:hidden">DL</span>
+    <motion.div 
+      className="glassmorphism p-6 rounded-xl border border-white/10"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="text-lg font-medium gradient-text">{title}</h4>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" className="hover:bg-white/10 border border-white/20">
+            <Download className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="outline" className="flex-1 sm:flex-none">
-            <Share className="h-4 w-4 mr-1" />
-            <span className="hidden sm:inline">Поделиться</span>
-            <span className="sm:hidden">Share</span>
+          <Button size="sm" variant="ghost" className="hover:bg-white/10 border border-white/20">
+            <Share2 className="h-4 w-4" />
           </Button>
         </div>
       </div>
-      <audio controls className="w-full">
+      <audio controls className="w-full modern-audio-player">
         <source src={src} type="audio/mpeg" />
         Ваш браузер не поддерживает аудио элемент.
       </audio>
-    </div>
+    </motion.div>
   );
 }
 
@@ -197,229 +198,360 @@ export default function MusicStudio() {
   }
 
   return (
-    <div className="space-y-6">
-      {showAdmin && <AdminPanel />}
-      
-      <Card>
-        <CardHeader>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <CardTitle className="flex items-center gap-2">
-                <Wand2 className="h-5 w-5" />
-                Генерация музыки с ИИ
-              </CardTitle>
-              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAdvanced(true)}
-                  className="flex-1 sm:flex-none"
-                >
-                  <ArrowRight className="h-4 w-4 mr-1" />
-                  <span className="hidden sm:inline">Продвинутый режим</span>
-                  <span className="sm:hidden">Продвинутый</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAdmin(!showAdmin)}
-                  className="flex-1 sm:flex-none"
-                >
-                  {showAdmin ? 'Скрыть логи' : 'Логи'}
-                </Button>
-              </div>
-            </div>
-          <CardDescription>
-            Создайте уникальную музыку, описав то, что хотите услышать
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {!currentJob ? (
-            <>
-              <div className="space-y-2">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <Label htmlFor="prompt">Описание трека</Label>
-                  <div className="flex gap-1 sm:gap-2 w-full sm:w-auto">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={generateRandomPrompt}
-                      className="text-xs px-2 sm:px-3 py-1 flex-1 sm:flex-none min-w-0"
-                    >
-                      <Shuffle className="h-3 w-3 mr-1 flex-shrink-0" />
-                      <span className="hidden sm:inline">Случайный</span>
-                      <span className="sm:hidden truncate">Rand</span>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={enhancePrompt}
-                      disabled={isEnhancing}
-                      className="text-xs px-2 sm:px-3 py-1 flex-1 sm:flex-none min-w-0"
-                    >
-                      <Zap className={`h-3 w-3 mr-1 flex-shrink-0 ${isEnhancing ? 'animate-pulse' : ''}`} />
-                      <span className="hidden sm:inline">{isEnhancing ? 'Обработка...' : 'Улучшить'}</span>
-                      <span className="sm:hidden truncate">{isEnhancing ? '...' : 'AI+'}</span>
-                    </Button>
-                  </div>
-                </div>
-                <Textarea
-                  id="prompt"
-                  placeholder="Например: Энергичная поп-песня о лете с яркими синтезаторами и женским вокалом"
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  rows={4}
-                />
-              </div>
+    <motion.div 
+      className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background/90 p-4 md:p-6"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6 }}
+    >
+      <div className="max-w-5xl mx-auto space-y-8">
+        {/* Header Section */}
+        <motion.div 
+          className="text-center space-y-4"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+        >
+          <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full glassmorphism border border-white/10">
+            <Music2 className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl font-medium gradient-text">Студия ИИ</h1>
+            <AudioVisualizer isPlaying={isGenerating} barCount={5} className="h-6" />
+          </div>
+          <p className="text-muted-foreground max-w-2xl mx-auto">
+            Создавайте уникальную музыку с помощью искусственного интеллекта. 
+            Просто опишите желаемый трек и получите профессиональный результат.
+          </p>
+        </motion.div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Admin Panel - Hidden by default */}
+        <AnimatePresence>
+          {showAdmin && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <AdminPanel />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Main Studio Interface */}
+        <AnimatedCard 
+          variant="glass" 
+          className="backdrop-blur-xl border-white/10 overflow-hidden"
+        >
+          <div className="p-8 space-y-8">
+            {!currentJob ? (
+              <motion.div 
+                className="space-y-8"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+              >
+                {/* Creative Prompt Section */}
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>ИИ Провайдер</Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-lg font-medium">Опишите ваш трек</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={generateRandomPrompt}
+                        className="hover:bg-white/10 border border-white/20"
+                      >
+                        <Shuffle className="h-4 w-4 mr-2" />
+                        Случайный
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={enhancePrompt}
+                        disabled={isEnhancing}
+                        className="hover:bg-white/10 border border-white/20"
+                      >
+                        <Zap className={`h-4 w-4 mr-2 ${isEnhancing ? 'animate-pulse text-yellow-400' : ''}`} />
+                        {isEnhancing ? 'Улучшаю...' : 'Улучшить с ИИ'}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <motion.div
+                    whileFocus={{ scale: 1.02 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  >
+                    <Textarea
+                      id="prompt"
+                      placeholder="Энергичная поп-песня о лете с яркими синтезаторами и женским вокалом..."
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      rows={3}
+                      className="glassmorphism border-white/20 bg-white/5 backdrop-blur-sm resize-none text-lg"
+                    />
+                  </motion.div>
+                </div>
+
+                {/* Settings Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* Provider Selection */}
+                  <motion.div 
+                    className="space-y-3"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: 0.3 }}
+                  >
+                    <Label className="text-sm font-medium text-muted-foreground">ИИ Модель</Label>
                     <Select value={provider} onValueChange={handleProviderChange}>
-                      <SelectTrigger>
+                      <SelectTrigger className="glassmorphism border-white/20 bg-white/5">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="glassmorphism border-white/20 bg-background/95 backdrop-blur-xl">
                         <SelectItem value="suno">
                           <div className="flex items-center gap-2">
-                            <Sparkles className="h-4 w-4" />
+                            <Sparkles className="h-4 w-4 text-yellow-400" />
                             Suno AI
                           </div>
                         </SelectItem>
                         <SelectItem value="mureka">
                           <div className="flex items-center gap-2">
-                            <Music className="h-4 w-4" />
+                            <Music2 className="h-4 w-4 text-blue-400" />
                             Mureka AI
                           </div>
                         </SelectItem>
                         <SelectItem value="test">
                           <div className="flex items-center gap-2">
-                            <Zap className="h-4 w-4" />
+                            <Zap className="h-4 w-4 text-green-400" />
                             Тест
                           </div>
                         </SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
+                  </motion.div>
 
+                  {/* Style Selection */}
+                  <motion.div 
+                    className="space-y-3"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
+                  >
+                    <Label className="text-sm font-medium text-muted-foreground">Жанр</Label>
+                    <Select value={style} onValueChange={setStyle}>
+                      <SelectTrigger className="glassmorphism border-white/20 bg-white/5">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="glassmorphism border-white/20 bg-background/95 backdrop-blur-xl">
+                        <SelectItem value="pop">🎵 Поп</SelectItem>
+                        <SelectItem value="rock">🎸 Рок</SelectItem>
+                        <SelectItem value="electronic">🎛️ Электронная</SelectItem>
+                        <SelectItem value="hip-hop">🎤 Хип-хоп</SelectItem>
+                        <SelectItem value="classical">🎼 Классическая</SelectItem>
+                        <SelectItem value="jazz">🎺 Джаз</SelectItem>
+                        <SelectItem value="ambient">🌊 Эмбиент</SelectItem>
+                        <SelectItem value="folk">🪕 Фолк</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </motion.div>
+
+                  {/* Duration Control */}
+                  <motion.div 
+                    className="space-y-3"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: 0.5 }}
+                  >
+                    <Label className="text-sm font-medium text-muted-foreground">
+                      Длительность: {duration[0]}с
+                    </Label>
+                    <div className="glassmorphism p-4 rounded-lg border border-white/20 bg-white/5">
+                      <Slider
+                        value={duration}
+                        onValueChange={setDuration}
+                        max={180}
+                        min={30}
+                        step={15}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                        <span>30с</span>
+                        <span>180с</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+
+                {/* Model Selector */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.6 }}
+                >
                   <ModelSelector
                     value={model}
                     onChange={setModel}
                     provider={provider}
                     showDetails={true}
                   />
+                </motion.div>
 
-                  <div className="space-y-2">
-                    <Label>Стиль</Label>
-                    <Select value={style} onValueChange={setStyle}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pop">Поп</SelectItem>
-                        <SelectItem value="rock">Рок</SelectItem>
-                        <SelectItem value="electronic">Электронная</SelectItem>
-                        <SelectItem value="hip-hop">Хип-хоп</SelectItem>
-                        <SelectItem value="classical">Классическая</SelectItem>
-                        <SelectItem value="jazz">Джаз</SelectItem>
-                        <SelectItem value="ambient">Эмбиент</SelectItem>
-                        <SelectItem value="folk">Фолк</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Длительность: {duration[0]} сек</Label>
-                    <Slider
-                      value={duration}
-                      onValueChange={setDuration}
-                      max={180}
-                      min={30}
-                      step={15}
-                      className="w-full"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2">
+                {/* Advanced Options */}
+                <motion.div 
+                  className="space-y-4"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.7 }}
+                >
+                  <div className="flex items-center justify-between p-4 glassmorphism rounded-lg border border-white/20 bg-white/5">
+                    <div className="flex items-center gap-3">
+                      <Mic className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <Label className="text-sm font-medium">Инструментальная версия</Label>
+                        <p className="text-xs text-muted-foreground">Трек без вокала</p>
+                      </div>
+                    </div>
                     <Switch
-                      id="instrumental"
                       checked={instrumental}
                       onCheckedChange={setInstrumental}
                     />
-                    <Label htmlFor="instrumental">Инструментальная версия</Label>
                   </div>
 
-                  {!instrumental && (
-                    <div className="space-y-2">
-                      <Label htmlFor="lyrics">Текст песни (опционально)</Label>
-                      <Textarea
-                        id="lyrics"
-                        placeholder="Введите текст песни или оставьте пустым для автогенерации"
-                        value={lyrics}
-                        onChange={(e) => setLyrics(e.target.value)}
-                        rows={6}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
+                  <AnimatePresence>
+                    {!instrumental && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="space-y-3"
+                      >
+                        <Label className="text-sm font-medium text-muted-foreground">
+                          Текст песни (опционально)
+                        </Label>
+                        <Textarea
+                          placeholder="Введите текст песни или оставьте пустым для автогенерации..."
+                          value={lyrics}
+                          onChange={(e) => setLyrics(e.target.value)}
+                          rows={4}
+                          className="glassmorphism border-white/20 bg-white/5 backdrop-blur-sm resize-none"
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
 
-              <Button 
-                onClick={handleGenerate} 
-                disabled={isGenerating || !prompt.trim()}
-                className="w-full text-sm sm:text-base"
-                size="lg"
+                {/* Generate Button */}
+                <motion.div 
+                  className="flex flex-col sm:flex-row gap-4"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.8 }}
+                >
+                  <motion.div
+                    className="flex-1"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Button 
+                      onClick={handleGenerate} 
+                      disabled={isGenerating || !prompt.trim()}
+                      className="w-full h-14 text-lg font-medium gradient-primary hover:shadow-glow transition-all duration-300"
+                      size="lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        {isGenerating ? (
+                          <>
+                            <Volume2 className="h-5 w-5 animate-pulse" />
+                            <span>Создаю музыку...</span>
+                            <AudioVisualizer isPlaying={true} barCount={4} className="h-5" />
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-5 w-5" />
+                            <span>Создать музыку</span>
+                          </>
+                        )}
+                      </div>
+                    </Button>
+                  </motion.div>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAdvanced(true)}
+                    className="hover:bg-white/10 border border-white/20"
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Расширенный режим
+                  </Button>
+                </motion.div>
+
+                {/* Quick Actions */}
+                <motion.div 
+                  className="flex justify-center gap-2"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.9 }}
+                >
+                  <Button 
+                    onClick={async () => {
+                      try {
+                        const { data, error } = await supabase.functions.invoke('test-auth');
+                        if (data?.success) {
+                          toast({
+                            title: "✅ Соединение установлено",
+                            description: "Сервер готов к работе"
+                          });
+                        } else {
+                          toast({
+                            title: "❌ Ошибка соединения",
+                            description: data?.error || error?.message,
+                            variant: "destructive"
+                          });
+                        }
+                      } catch (err) {
+                        toast({
+                          title: "❌ Ошибка подключения",
+                          description: `${err.message}`,
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Проверить соединение
+                  </Button>
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAdmin(!showAdmin)}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    {showAdmin ? 'Скрыть' : 'Показать'} логи
+                  </Button>
+                </motion.div>
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5 }}
               >
-                <Sparkles className="h-4 w-4 mr-2 flex-shrink-0" />
-                <span className="truncate">{isGenerating ? 'Создаем...' : 'Создать музыку'}</span>
-              </Button>
-              
-              <Button 
-                onClick={async () => {
-                  try {
-                    const { data, error } = await supabase.functions.invoke('test-auth');
-                    console.log('Test auth result:', { data, error });
-                    if (data?.success) {
-                      toast({
-                        title: "Аутентификация работает!",
-                        description: "Соединение с сервером установлено"
-                      });
-                    } else {
-                      toast({
-                        title: "Ошибка аутентификации",
-                        description: data?.error || error?.message,
-                        variant: "destructive"
-                      });
-                    }
-                  } catch (err) {
-                    console.error('Test auth error:', err);
-                    toast({
-                      title: "Ошибка соединения",
-                      description: `${err.message}`,
-                      variant: "destructive"
-                    });
-                  }
-                }}
-                variant="outline"
-                className="w-full"
-                size="sm"
-              >
-                Тест соединения
-              </Button>
-            </>
-          ) : (
-            <GenerationProgress 
-              job={currentJob}
-              onReset={resetGeneration}
-              onRetry={currentJob.status === 'failed' ? handleRetry : undefined}
-            />
-          )}
-        </CardContent>
-      </Card>
-    </div>
+                <GenerationProgress 
+                  job={currentJob}
+                  onReset={resetGeneration}
+                  onRetry={currentJob.status === 'failed' ? handleRetry : undefined}
+                />
+              </motion.div>
+            )}
+          </div>
+        </AnimatedCard>
+      </div>
+    </motion.div>
   );
 }
