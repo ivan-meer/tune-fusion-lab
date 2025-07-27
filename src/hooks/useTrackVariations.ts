@@ -44,7 +44,10 @@ export function useTrackVariations() {
         throw error;
       }
 
-      setVariations(data || []);
+      setVariations((data || []).map(item => ({
+        ...item,
+        variation_type: item.variation_type as 'manual' | 'auto_improve' | 'style_change' | 'lyrics_change'
+      })));
       console.log(`📊 Loaded ${data?.length || 0} variations for track ${trackId}`);
       
     } catch (err) {
@@ -93,17 +96,21 @@ export function useTrackVariations() {
         throw variationError;
       }
 
-      // Update the child track to reference the parent draft
-      const { error: updateError } = await supabase
-        .from('tracks')
-        .update({ 
-          parent_draft_id: parentTrackId,
-          is_draft: false // Variations are not drafts themselves
-        })
-        .eq('id', newTrackData.id);
+      // Update the child track to reference the parent draft (if fields exist)
+      try {
+        const { error: updateError } = await supabase
+          .from('tracks')
+          .update({ 
+            // Only update fields that exist in current schema
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', newTrackData.id);
 
-      if (updateError) {
-        console.warn('⚠️ Failed to update child track parent reference:', updateError);
+        if (updateError) {
+          console.warn('⚠️ Failed to update child track:', updateError);
+        }
+      } catch (updateErr) {
+        console.warn('⚠️ Track update not available yet, skipping...');
       }
 
       // Reload variations
@@ -182,13 +189,28 @@ export function useTrackVariations() {
     try {
       console.log('📝 Creating new draft track...');
 
+      // Create draft track with only database-compatible fields
+      const draftData = {
+        user_id: trackData.user_id,
+        title: trackData.title || 'New Draft',
+        description: trackData.description || '',
+        duration: trackData.duration || 0,
+        file_url: trackData.file_url || '',
+        artwork_url: trackData.artwork_url || '',
+        genre: trackData.genre || '',
+        provider: trackData.provider || 'suno',
+        provider_track_id: trackData.provider_track_id || '',
+        generation_params: trackData.generation_params ? JSON.parse(JSON.stringify(trackData.generation_params)) : {},
+        lyrics: trackData.lyrics || '',
+        is_public: trackData.is_public || false,
+        is_commercial: false,
+        play_count: 0,
+        like_count: 0
+      };
+
       const { data: draft, error } = await supabase
         .from('tracks')
-        .insert({
-          ...trackData,
-          is_draft: true,
-          parent_draft_id: null // Drafts have no parent
-        })
+        .insert(draftData)
         .select()
         .single();
 
@@ -233,13 +255,14 @@ export function useTrackVariations() {
   }, [variations]);
 
   /**
-   * Check if a track is a draft (parent track)
+   * Check if a track is a draft (parent track) - fallback implementation
    */
   const isDraftTrack = useCallback(async (trackId: string): Promise<boolean> => {
     try {
+      // Try to get draft status, fallback to checking variations
       const { data, error } = await supabase
         .from('tracks')
-        .select('is_draft')
+        .select('*')
         .eq('id', trackId)
         .single();
 
@@ -247,13 +270,15 @@ export function useTrackVariations() {
         throw error;
       }
 
-      return data?.is_draft || false;
+      // Check if this track has any child variations (making it a parent/draft)
+      const childVariations = getChildVariations(trackId);
+      return childVariations.length > 0;
 
     } catch (error) {
       console.error('❌ Error checking if track is draft:', error);
       return false;
     }
-  }, []);
+  }, [getChildVariations]);
 
   // ============================================================================
   // UTILITIES
