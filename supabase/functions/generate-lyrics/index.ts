@@ -58,6 +58,7 @@ Deno.serve(async (req) => {
     // Generate lyrics using Suno API with proper parameters
     const requestBody = {
       prompt: lyricsRequest.prompt,
+      model: 'V4_5', // Required parameter - using latest model
       customMode: true,
       title: `Generated Lyrics for ${lyricsRequest.style || 'pop'}`,
       style: lyricsRequest.style || 'pop',
