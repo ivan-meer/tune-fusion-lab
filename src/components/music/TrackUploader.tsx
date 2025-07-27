@@ -17,9 +17,10 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { useUserTracks, Track } from '@/hooks/useUserTracks';
+import AudioPreview from './AudioPreview';
 import { 
   Upload, X, Music, FileAudio, Check, 
-  AlertCircle, Loader2, Download, Save
+  AlertCircle, Loader2, Download, Save, Play
 } from 'lucide-react';
 
 interface TrackMetadata {
@@ -50,6 +51,7 @@ export default function TrackUploader() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedFileForPreview, setSelectedFileForPreview] = useState<File | null>(null);
   const [metadata, setMetadata] = useState<TrackMetadata>({
     title: '',
     description: '',
@@ -357,19 +359,60 @@ export default function TrackUploader() {
                     {uploadProgress[file.name] === 100 ? (
                       <Check className="h-5 w-5 text-green-500" />
                     ) : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFile(index)}
-                        disabled={isUploading}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedFileForPreview(file)}
+                          disabled={isUploading}
+                          title="Предварительное прослушивание"
+                        >
+                          <Play className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFile(index)}
+                          disabled={isUploading}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     )}
                   </motion.div>
                 ))}
               </CardContent>
             </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Audio Preview */}
+      <AnimatePresence>
+        {selectedFileForPreview && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <AudioPreview 
+              file={selectedFileForPreview}
+              onError={(error) => {
+                toast({
+                  title: "Ошибка воспроизведения",
+                  description: error,
+                  variant: "destructive"
+                });
+              }}
+            />
+            <div className="flex justify-end mt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setSelectedFileForPreview(null)}
+              >
+                Закрыть превью
+              </Button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

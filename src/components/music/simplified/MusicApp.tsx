@@ -16,6 +16,7 @@ import { Music, Library, Sparkles, Settings, Layers, Upload } from 'lucide-react
 import UnifiedMusicStudio from '../UnifiedMusicStudio';
 import TrackLibrary from '../TrackLibrary';
 import TrackUploader from '../TrackUploader';
+import UploadAnalytics from '../UploadAnalytics';
 import { MusicPipeline } from '../pipeline/MusicPipeline';
 import { PipelineFragments } from '../pipeline/PipelineFragments';
 
@@ -45,7 +46,7 @@ export default function MusicApp() {
 
       {/* Main Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-        <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto h-12">
+        <TabsList className="grid w-full grid-cols-5 max-w-3xl mx-auto h-12">
           <TabsTrigger value="create" className="flex items-center gap-2 text-sm font-medium">
             <Music className="h-4 w-4" />
             <span className="hidden sm:inline">Создать</span>
@@ -61,6 +62,10 @@ export default function MusicApp() {
           <TabsTrigger value="library" className="flex items-center gap-2 text-sm font-medium">
             <Library className="h-4 w-4" />
             <span className="hidden sm:inline">Библиотека</span>
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center gap-2 text-sm font-medium">
+            <Sparkles className="h-4 w-4" />
+            <span className="hidden sm:inline">Аналитика</span>
           </TabsTrigger>
         </TabsList>
 
@@ -102,6 +107,11 @@ export default function MusicApp() {
         {/* Library Tab */}
         <TabsContent value="library" className="space-y-6">
           <TrackLibrary />
+        </TabsContent>
+
+        {/* Analytics Tab */}
+        <TabsContent value="analytics" className="space-y-6">
+          <UploadAnalytics />
         </TabsContent>
       </Tabs>
     </div>
