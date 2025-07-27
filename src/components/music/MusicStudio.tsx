@@ -171,25 +171,65 @@ export default function MusicStudio() {
         }
       });
 
-      if (data?.success && data.lyrics?.content) {
-        setLyrics(data.lyrics.content);
+      if (data?.success && data.lyrics) {
+        const lyricsId = data.lyrics.id;
+        
+        // Подписываемся на обновления лирики
+        const channel = supabase
+          .channel('lyrics-updates')
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'lyrics',
+              filter: `id=eq.${lyricsId}`
+            },
+            (payload) => {
+              console.log('Lyrics updated:', payload.new);
+              if (payload.new.content && payload.new.content !== "Генерация лирики в процессе... Ожидайте результат.") {
+                setLyrics(payload.new.content);
+                setIsGeneratingLyrics(false);
+                toast({
+                  title: "🎤 Лирика сгенерирована!",
+                  description: "Текст песни создан с помощью ИИ"
+                });
+                // Отписываемся от канала после получения результата
+                supabase.removeChannel(channel);
+              }
+            }
+          )
+          .subscribe();
+
+        // Таймаут на случай если callback не придет
+        setTimeout(() => {
+          if (isGeneratingLyrics) {
+            setIsGeneratingLyrics(false);
+            supabase.removeChannel(channel);
+            toast({
+              title: "⏰ Генерация занимает больше времени",
+              description: "Попробуйте обновить страницу через минуту",
+              variant: "destructive"
+            });
+          }
+        }, 120000); // 2 минуты
+
         toast({
-          title: "🎤 Лирика сгенерирована!",
-          description: "Текст песни создан с помощью ИИ"
+          title: "🎵 Генерация лирики начата",
+          description: "Ожидайте результат, это может занять несколько минут"
         });
       } else {
         throw new Error(data?.error || error?.message || 'Не удалось сгенерировать лирику');
       }
     } catch (error) {
       console.error('Lyrics generation error:', error);
+      setIsGeneratingLyrics(false);
       toast({
         title: "❌ Ошибка генерации лирики",
         description: error.message || "Попробуйте еще раз",
         variant: "destructive"
       });
     }
-
-    setIsGeneratingLyrics(false);
   };
 
   const handleGenerate = async () => {
