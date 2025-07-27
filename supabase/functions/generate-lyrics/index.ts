@@ -55,18 +55,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate lyrics using Suno API - use correct endpoint with lyrics-only parameters
+    // Generate lyrics using Suno API - use /api/v1/generate with specific lyrics parameters
     const callbackUrl = `${supabaseUrl}/functions/v1/suno-callback`;
     
+    // Создаем запрос ТОЛЬКО для лирики (без аудио)
     const requestBody = {
       prompt: lyricsRequest.prompt,
       style: lyricsRequest.style || 'pop',
+      title: `Lyrics: ${lyricsRequest.prompt.substring(0, 50)}...`,
+      customMode: true,
+      instrumental: false,
       make_instrumental: false,
-      wait_audio: false, // Key parameter - don't generate audio
+      wait_audio: false, // Не ждать генерацию аудио
+      lyrics_only: true, // Только лирика
       callBackUrl: callbackUrl
     };
 
-    console.log('Sending lyrics request to Suno API (with wait_audio=false):', requestBody);
+    console.log('Sending LYRICS-ONLY request to Suno API:', JSON.stringify(requestBody, null, 2));
 
     const lyricsResponse = await fetch('https://api.sunoapi.org/api/v1/generate', {
       method: 'POST',
@@ -93,19 +98,24 @@ Deno.serve(async (req) => {
     if (lyricsData.code === 200 && lyricsData.data?.taskId) {
       console.log('Lyrics generation started with taskId:', lyricsData.data.taskId);
       
-      // Save initial record with pending status
+      // Save initial record with pending status and lyrics-specific metadata
       const { data: savedLyrics, error: saveError } = await supabase
         .from('lyrics')
         .insert({
           user_id: user.id,
-          title: `Lyrics for: ${lyricsRequest.prompt.substring(0, 50)}...`,
-          content: 'Генерация текста в процессе... Ожидайте результат.',
+          title: `Lyrics: ${lyricsRequest.prompt.substring(0, 50)}...`,
+          content: 'Генерация лирики в процессе... Ожидайте результат.',
           prompt: lyricsRequest.prompt,
           style: lyricsRequest.style || 'pop',
           language: lyricsRequest.language || 'russian',
           provider: 'suno',
           provider_lyrics_id: lyricsData.data.taskId,
-          generation_params: lyricsRequest
+          generation_params: {
+            ...lyricsRequest,
+            lyrics_only: true,
+            wait_audio: false,
+            endpoint_used: '/api/v1/generate'
+          }
         })
         .select()
         .single();

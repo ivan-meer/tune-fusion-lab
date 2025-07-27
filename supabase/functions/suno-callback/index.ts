@@ -174,38 +174,56 @@ Deno.serve(async (req) => {
       console.log('Processing lyrics callback for record:', lyricsRecord.id);
       console.log('Callback status:', status, 'Data structure:', JSON.stringify(data, null, 2));
       
-      // Handle lyrics callback with wait_audio=false parameter
+      // Handle lyrics-only callback (wait_audio=false, lyrics_only=true)
       if ((status === 'complete' || status === 'text') && data.data && data.data.length > 0) {
-        console.log('Processing lyrics callback');
+        console.log('Processing LYRICS-ONLY callback');
         console.log('Full callback structure:', JSON.stringify(data, null, 2));
         
         const firstItem = data.data[0];
-        console.log('First item keys:', Object.keys(firstItem));
+        console.log('Callback item keys:', Object.keys(firstItem));
         console.log('Has audio_url:', !!firstItem.audio_url);
+        console.log('Has text field:', !!firstItem.text);
+        console.log('Has lyrics field:', !!firstItem.lyrics);
         
         let lyricsContent = '';
         
-        // For wait_audio=false requests, should get lyrics without audio
-        if (firstItem.audio_url) {
-          console.log('Note: Audio URL present but extracting lyrics from prompt/text');
+        // Проверяем, что получили ТОЛЬКО лирику
+        if (firstItem.audio_url && firstItem.audio_url.length > 0) {
+          console.warn('WARNING: Audio URL present in lyrics-only request. Extracting lyrics anyway.');
         }
         
-        // Extract lyrics text from various possible fields
-        if (firstItem.text && firstItem.text.length > 0 && !firstItem.text.includes('Создай профессиональную лирику')) {
+        // Приоритетный порядок извлечения лирики
+        if (firstItem.text && firstItem.text.length > 50 && !firstItem.text.includes('Создай профессиональную лирику')) {
           lyricsContent = firstItem.text;
-        } else if (firstItem.lyrics && firstItem.lyrics.length > 0) {
+          console.log('✅ Extracted lyrics from "text" field');
+        } else if (firstItem.lyrics && firstItem.lyrics.length > 50) {
           lyricsContent = firstItem.lyrics;
-        } else if (firstItem.content && firstItem.content.length > 0 && !firstItem.content.includes('Создай профессиональную лирику')) {
-          lyricsContent = firstItem.content;
-        } else if (firstItem.lyric_text && firstItem.lyric_text.length > 0) {
+          console.log('✅ Extracted lyrics from "lyrics" field');
+        } else if (firstItem.lyric_text && firstItem.lyric_text.length > 50) {
           lyricsContent = firstItem.lyric_text;
-        } else if (firstItem.prompt && firstItem.prompt.includes('[Verse]')) {
-          // If prompt contains structured lyrics
-          lyricsContent = firstItem.prompt;
+          console.log('✅ Extracted lyrics from "lyric_text" field');
+        } else if (firstItem.content && firstItem.content.length > 50 && !firstItem.content.includes('Создай профессиональную лирику')) {
+          lyricsContent = firstItem.content;
+          console.log('✅ Extracted lyrics from "content" field');
+        } else if (firstItem.generated_text && firstItem.generated_text.length > 50) {
+          lyricsContent = firstItem.generated_text;
+          console.log('✅ Extracted lyrics from "generated_text" field');
         } else {
-          console.error('No lyrics content found in callback');
-          console.log('Available fields:', Object.keys(firstItem));
-          lyricsContent = 'Лирика сгенерирована, но текст не найден в callback данных.';
+          // Fallback - попробуем извлечь из prompt если он содержит структуру песни
+          if (firstItem.prompt && firstItem.prompt.includes('[Verse]') && firstItem.prompt.includes('[Chorus]')) {
+            lyricsContent = firstItem.prompt;
+            console.log('⚠️ Using structured prompt as lyrics fallback');
+          } else {
+            console.error('❌ No valid lyrics content found in any field');
+            console.log('Available fields and their lengths:');
+            Object.keys(firstItem).forEach(key => {
+              const value = firstItem[key];
+              if (typeof value === 'string') {
+                console.log(`  ${key}: ${value.length} chars`);
+              }
+            });
+            lyricsContent = 'Лирика сгенерирована, но текст не найден в ожидаемых полях callback данных. Проверьте логи для диагностики.';
+          }
         }
         
         // Clean up the lyrics content if it's too long or contains generation instructions
