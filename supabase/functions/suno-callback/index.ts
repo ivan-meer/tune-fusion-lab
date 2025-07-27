@@ -66,21 +66,44 @@ Deno.serve(async (req) => {
     let jobs = null;
     let fetchError = null;
     
-    // First try: search in response_data->task_id
+    // First try: search in response_data->taskId path
     ({ data: jobs, error: fetchError } = await supabase
       .from('generation_jobs')
       .select('*')
-      .eq('response_data->task_id', taskId)
+      .filter('response_data->taskId', 'eq', taskId)
       .limit(1));
     
-    // Second try: search in request_params if first failed
+    // Second try: search by converting response_data to text and using LIKE
     if (!jobs || jobs.length === 0) {
-      console.log('Trying alternative search by request params...');
+      console.log('Trying alternative search by response_data text...');
       ({ data: jobs, error: fetchError } = await supabase
         .from('generation_jobs')
         .select('*')
-        .like('response_data', `%${taskId}%`)
+        .textSearch('response_data', taskId)
         .limit(1));
+    }
+    
+    // Third try: search all recent jobs and filter in code
+    if (!jobs || jobs.length === 0) {
+      console.log('Trying full search approach...');
+      ({ data: jobs, error: fetchError } = await supabase
+        .from('generation_jobs')
+        .select('*')
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours
+        .order('created_at', { ascending: false }));
+        
+      if (jobs) {
+        jobs = jobs.filter(job => {
+          const responseData = job.response_data;
+          if (responseData && typeof responseData === 'object') {
+            return responseData.taskId === taskId || 
+                   responseData.task_id === taskId ||
+                   JSON.stringify(responseData).includes(taskId);
+          }
+          return false;
+        });
+        jobs = jobs.slice(0, 1); // Take only the first match
+      }
     }
 
     if (fetchError) {

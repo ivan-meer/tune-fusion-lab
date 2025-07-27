@@ -238,17 +238,17 @@ export default function MusicStudio() {
               <div className="space-y-2">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <Label htmlFor="prompt">Описание трека</Label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1 sm:gap-2 w-full sm:w-auto">
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={generateRandomPrompt}
-                      className="text-xs px-3 py-1"
+                      className="text-xs px-2 sm:px-3 py-1 flex-1 sm:flex-none min-w-0"
                     >
-                      <Shuffle className="h-3 w-3 mr-1" />
+                      <Shuffle className="h-3 w-3 mr-1 flex-shrink-0" />
                       <span className="hidden sm:inline">Случайный</span>
-                      <span className="sm:hidden">Rand</span>
+                      <span className="sm:hidden truncate">Rand</span>
                     </Button>
                     <Button
                       type="button"
@@ -256,11 +256,11 @@ export default function MusicStudio() {
                       size="sm"
                       onClick={enhancePrompt}
                       disabled={isEnhancing}
-                      className="text-xs px-3 py-1"
+                      className="text-xs px-2 sm:px-3 py-1 flex-1 sm:flex-none min-w-0"
                     >
-                      <Zap className={`h-3 w-3 mr-1 ${isEnhancing ? 'animate-pulse' : ''}`} />
+                      <Zap className={`h-3 w-3 mr-1 flex-shrink-0 ${isEnhancing ? 'animate-pulse' : ''}`} />
                       <span className="hidden sm:inline">{isEnhancing ? 'Обработка...' : 'Улучшить'}</span>
-                      <span className="sm:hidden">{isEnhancing ? '...' : 'AI+'}</span>
+                      <span className="sm:hidden truncate">{isEnhancing ? '...' : 'AI+'}</span>
                     </Button>
                   </div>
                 </div>
@@ -371,11 +371,11 @@ export default function MusicStudio() {
               <Button 
                 onClick={handleGenerate} 
                 disabled={isGenerating || !prompt.trim()}
-                className="w-full"
+                className="w-full text-sm sm:text-base"
                 size="lg"
               >
-                <Sparkles className="h-4 w-4 mr-2" />
-                {isGenerating ? 'Создаем...' : 'Создать музыку'}
+                <Sparkles className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span className="truncate">{isGenerating ? 'Создаем...' : 'Создать музыку'}</span>
               </Button>
               
               <Button 
