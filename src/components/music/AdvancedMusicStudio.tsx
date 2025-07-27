@@ -73,6 +73,7 @@ const AdvancedMusicStudio = () => {
   };
 
   const moodOptions = [
+    { value: 'neutral', label: 'Нейтральное', icon: '😐' },
     { value: 'happy', label: 'Радостное', icon: '😊' },
     { value: 'melancholic', label: 'Меланхоличное', icon: '😢' },
     { value: 'energetic', label: 'Энергичное', icon: '⚡' },

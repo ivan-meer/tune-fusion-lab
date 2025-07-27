@@ -23,7 +23,7 @@ export default function LyricsStudio() {
   const [prompt, setPrompt] = useState('');
   const [style, setStyle] = useState('pop');
   const [language, setLanguage] = useState('russian');
-  const [structure, setStructure] = useState('');
+  const [structure, setStructure] = useState('any');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedLyrics, setGeneratedLyrics] = useState<GeneratedLyrics[]>([]);
   
@@ -47,7 +47,7 @@ export default function LyricsStudio() {
           prompt: prompt.trim(),
           style: style || undefined,
           language: language || undefined,
-          structure: structure || undefined,
+          structure: structure && structure !== 'any' ? structure : undefined,
         },
       });
 
@@ -229,7 +229,7 @@ export default function LyricsStudio() {
                   <SelectValue placeholder="Любая" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Любая</SelectItem>
+                  <SelectItem value="any">Любая</SelectItem>
                   <SelectItem value="verse-chorus">Куплет-Припев</SelectItem>
                   <SelectItem value="verse-chorus-bridge">Полная структура</SelectItem>
                   <SelectItem value="simple">Простая</SelectItem>
