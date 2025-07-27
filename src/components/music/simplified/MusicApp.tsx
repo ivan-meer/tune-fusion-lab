@@ -11,10 +11,11 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Music, Library, Sparkles, Settings, Layers } from 'lucide-react';
+import { Music, Library, Sparkles, Settings, Layers, Upload } from 'lucide-react';
 
 import UnifiedMusicStudio from '../UnifiedMusicStudio';
 import TrackLibrary from '../TrackLibrary';
+import TrackUploader from '../TrackUploader';
 import { MusicPipeline } from '../pipeline/MusicPipeline';
 import { PipelineFragments } from '../pipeline/PipelineFragments';
 
@@ -44,10 +45,14 @@ export default function MusicApp() {
 
       {/* Main Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-        <TabsList className="grid w-full grid-cols-3 max-w-xl mx-auto h-12">
+        <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto h-12">
           <TabsTrigger value="create" className="flex items-center gap-2 text-sm font-medium">
             <Music className="h-4 w-4" />
             <span className="hidden sm:inline">Создать</span>
+          </TabsTrigger>
+          <TabsTrigger value="upload" className="flex items-center gap-2 text-sm font-medium">
+            <Upload className="h-4 w-4" />
+            <span className="hidden sm:inline">Загрузить</span>
           </TabsTrigger>
           <TabsTrigger value="pipeline" className="flex items-center gap-2 text-sm font-medium">
             <Settings className="h-4 w-4" />
@@ -62,6 +67,11 @@ export default function MusicApp() {
         {/* Create Music Tab */}
         <TabsContent value="create" className="space-y-6">
           <UnifiedMusicStudio />
+        </TabsContent>
+
+        {/* Upload Tab */}
+        <TabsContent value="upload" className="space-y-6">
+          <TrackUploader />
         </TabsContent>
 
         {/* Processing Tab - Combines Pipeline and Fragments */}
