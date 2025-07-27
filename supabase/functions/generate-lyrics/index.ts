@@ -55,18 +55,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate lyrics using Suno API - use correct lyrics-only endpoint
+    // Generate lyrics using Suno API - use correct endpoint with lyrics-only parameters
     const callbackUrl = `${supabaseUrl}/functions/v1/suno-callback`;
     
     const requestBody = {
       prompt: lyricsRequest.prompt,
       style: lyricsRequest.style || 'pop',
+      make_instrumental: false,
+      wait_audio: false, // Key parameter - don't generate audio
       callBackUrl: callbackUrl
     };
 
-    console.log('Sending lyrics request to Suno API (lyrics-only endpoint):', requestBody);
+    console.log('Sending lyrics request to Suno API (with wait_audio=false):', requestBody);
 
-    const lyricsResponse = await fetch('https://api.sunoapi.org/api/v1/lyrics/generate', {
+    const lyricsResponse = await fetch('https://api.sunoapi.org/api/v1/generate', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,

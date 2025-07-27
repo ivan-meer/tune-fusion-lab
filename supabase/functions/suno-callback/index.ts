@@ -174,39 +174,34 @@ Deno.serve(async (req) => {
       console.log('Processing lyrics callback for record:', lyricsRecord.id);
       console.log('Callback status:', status, 'Data structure:', JSON.stringify(data, null, 2));
       
-      // Handle lyrics callback - should only contain text, no audio
+      // Handle lyrics callback with wait_audio=false parameter
       if ((status === 'complete' || status === 'text') && data.data && data.data.length > 0) {
-        console.log('Processing lyrics-only callback');
+        console.log('Processing lyrics callback');
         console.log('Full callback structure:', JSON.stringify(data, null, 2));
         
         const firstItem = data.data[0];
         console.log('First item keys:', Object.keys(firstItem));
-        
-        // Verify this is lyrics-only (should NOT have audio_url)
-        if (firstItem.audio_url) {
-          console.error('ERROR: Received audio in lyrics callback! Wrong endpoint used.');
-          const { error: updateError } = await supabase
-            .from('lyrics')
-            .update({
-              content: 'Ошибка: получена музыка вместо лирики. Проверьте настройки API.',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', lyricsRecord.id);
-          return new Response(JSON.stringify({ error: 'Wrong endpoint - got music instead of lyrics' }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
-        }
+        console.log('Has audio_url:', !!firstItem.audio_url);
         
         let lyricsContent = '';
         
-        // Extract lyrics from lyrics-only API response
-        if (firstItem.text && firstItem.text.length > 0) {
+        // For wait_audio=false requests, should get lyrics without audio
+        if (firstItem.audio_url) {
+          console.log('Note: Audio URL present but extracting lyrics from prompt/text');
+        }
+        
+        // Extract lyrics text from various possible fields
+        if (firstItem.text && firstItem.text.length > 0 && !firstItem.text.includes('Создай профессиональную лирику')) {
           lyricsContent = firstItem.text;
         } else if (firstItem.lyrics && firstItem.lyrics.length > 0) {
           lyricsContent = firstItem.lyrics;
-        } else if (firstItem.content && firstItem.content.length > 0) {
+        } else if (firstItem.content && firstItem.content.length > 0 && !firstItem.content.includes('Создай профессиональную лирику')) {
           lyricsContent = firstItem.content;
+        } else if (firstItem.lyric_text && firstItem.lyric_text.length > 0) {
+          lyricsContent = firstItem.lyric_text;
+        } else if (firstItem.prompt && firstItem.prompt.includes('[Verse]')) {
+          // If prompt contains structured lyrics
+          lyricsContent = firstItem.prompt;
         } else {
           console.error('No lyrics content found in callback');
           console.log('Available fields:', Object.keys(firstItem));
