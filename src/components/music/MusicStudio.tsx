@@ -28,16 +28,18 @@ interface AudioPlayerProps {
 function AudioPlayer({ src, title }: AudioPlayerProps) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h4 className="font-medium">{title}</h4>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h4 className="font-medium text-sm sm:text-base">{title}</h4>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button size="sm" variant="outline" className="flex-1 sm:flex-none">
             <Download className="h-4 w-4 mr-1" />
-            Скачать
+            <span className="hidden sm:inline">Скачать</span>
+            <span className="sm:hidden">DL</span>
           </Button>
-          <Button size="sm" variant="outline">
+          <Button size="sm" variant="outline" className="flex-1 sm:flex-none">
             <Share className="h-4 w-4 mr-1" />
-            Поделиться
+            <span className="hidden sm:inline">Поделиться</span>
+            <span className="sm:hidden">Share</span>
           </Button>
         </div>
       </div>
@@ -200,29 +202,32 @@ export default function MusicStudio() {
       
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Wand2 className="h-5 w-5" />
-              Генерация музыки с ИИ
-            </CardTitle>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAdvanced(true)}
-              >
-                <ArrowRight className="h-4 w-4 mr-1" />
-                Продвинутый режим
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAdmin(!showAdmin)}
-              >
-                {showAdmin ? 'Скрыть логи' : 'Показать логи'}
-              </Button>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2">
+                <Wand2 className="h-5 w-5" />
+                Генерация музыки с ИИ
+              </CardTitle>
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAdvanced(true)}
+                  className="flex-1 sm:flex-none"
+                >
+                  <ArrowRight className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">Продвинутый режим</span>
+                  <span className="sm:hidden">Продвинутый</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAdmin(!showAdmin)}
+                  className="flex-1 sm:flex-none"
+                >
+                  {showAdmin ? 'Скрыть логи' : 'Логи'}
+                </Button>
+              </div>
             </div>
-          </div>
           <CardDescription>
             Создайте уникальную музыку, описав то, что хотите услышать
           </CardDescription>
@@ -231,7 +236,7 @@ export default function MusicStudio() {
           {!currentJob ? (
             <>
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <Label htmlFor="prompt">Описание трека</Label>
                   <div className="flex gap-2">
                     <Button
@@ -239,10 +244,11 @@ export default function MusicStudio() {
                       variant="outline"
                       size="sm"
                       onClick={generateRandomPrompt}
-                      className="text-xs"
+                      className="text-xs px-3 py-1"
                     >
                       <Shuffle className="h-3 w-3 mr-1" />
-                      Случайный
+                      <span className="hidden sm:inline">Случайный</span>
+                      <span className="sm:hidden">Rand</span>
                     </Button>
                     <Button
                       type="button"
@@ -250,10 +256,11 @@ export default function MusicStudio() {
                       size="sm"
                       onClick={enhancePrompt}
                       disabled={isEnhancing}
-                      className="text-xs"
+                      className="text-xs px-3 py-1"
                     >
                       <Zap className={`h-3 w-3 mr-1 ${isEnhancing ? 'animate-pulse' : ''}`} />
-                      {isEnhancing ? 'Обработка...' : 'Улучшить'}
+                      <span className="hidden sm:inline">{isEnhancing ? 'Обработка...' : 'Улучшить'}</span>
+                      <span className="sm:hidden">{isEnhancing ? '...' : 'AI+'}</span>
                     </Button>
                   </div>
                 </div>
@@ -266,7 +273,7 @@ export default function MusicStudio() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label>ИИ Провайдер</Label>

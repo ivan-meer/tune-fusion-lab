@@ -151,14 +151,14 @@ const Index = () => {
                 transition={{ duration: 1, delay: 0.2 }}
                 className="space-y-6"
               >
-                <h1 className="text-6xl lg:text-8xl font-bold leading-tight tracking-tight">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-bold leading-tight tracking-tight px-4">
                   Создавайте{' '}
                   <span className="gradient-text block lg:inline">
                     Будущее Музыки
                   </span>
                 </h1>
                 
-                <p className="text-xl lg:text-2xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">
+                <p className="text-lg sm:text-xl lg:text-2xl text-muted-foreground max-w-4xl mx-auto leading-relaxed px-4">
                   Революционная платформа для создания профессиональной музыки с помощью 
                   искусственного интеллекта. От идеи до готового трека за секунды.
                 </p>
@@ -169,18 +169,19 @@ const Index = () => {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.6 }}
-                className="flex flex-col sm:flex-row gap-6 justify-center items-center"
+                className="flex flex-col gap-4 justify-center items-center px-4"
               >
                 <MagneticHover>
                   <Button 
                     size="lg" 
-                    className="px-12 py-6 text-lg bg-gradient-to-r from-primary to-primary-variant hover:opacity-90 glow-intense group relative overflow-hidden"
+                    className="w-full sm:w-auto px-8 sm:px-12 py-4 sm:py-6 text-base sm:text-lg bg-gradient-to-r from-primary to-primary-variant hover:opacity-90 glow-intense group relative overflow-hidden"
                     asChild
                   >
-                    <a href="/auth" className="flex items-center">
-                      <Play className="w-6 h-6 mr-3 group-hover:scale-110 transition-transform" />
-                      Создать Первый Трек
-                      <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                    <a href="/auth" className="flex items-center justify-center">
+                      <Play className="w-5 sm:w-6 h-5 sm:h-6 mr-2 sm:mr-3 group-hover:scale-110 transition-transform" />
+                      <span className="hidden sm:inline">Создать Первый Трек</span>
+                      <span className="sm:hidden">Создать Трек</span>
+                      <ArrowRight className="w-4 sm:w-5 h-4 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                     </a>
                   </Button>
                 </MagneticHover>
@@ -188,10 +189,10 @@ const Index = () => {
                 <Button 
                   size="lg" 
                   variant="outline"
-                  className="px-8 py-6 text-lg glassmorphism border-primary/30 hover-glow"
+                  className="w-full sm:w-auto px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg glassmorphism border-primary/30 hover-glow"
                   asChild
                 >
-                  <a href="#demo">
+                  <a href="#demo" className="flex items-center justify-center">
                     <Waves className="w-5 h-5 mr-2" />
                     Смотреть Демо
                   </a>
@@ -203,25 +204,25 @@ const Index = () => {
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.8 }}
-                className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-16 max-w-4xl mx-auto"
+                className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 pt-12 sm:pt-16 max-w-4xl mx-auto px-4"
               >
                 <div className="text-center">
-                  <div className="text-4xl lg:text-5xl font-bold gradient-text mb-2">
+                  <div className="text-3xl sm:text-4xl lg:text-5xl font-bold gradient-text mb-2">
                     <CountUp end={50} suffix="K+" />
                   </div>
-                  <div className="text-muted-foreground">Треков Создано</div>
+                  <div className="text-sm sm:text-base text-muted-foreground">Треков Создано</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-4xl lg:text-5xl font-bold gradient-text mb-2">
+                  <div className="text-3xl sm:text-4xl lg:text-5xl font-bold gradient-text mb-2">
                     <CountUp end={15} suffix="K+" />
                   </div>
-                  <div className="text-muted-foreground">Активных Артистов</div>
+                  <div className="text-sm sm:text-base text-muted-foreground">Активных Артистов</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-4xl lg:text-5xl font-bold gradient-text mb-2">
+                  <div className="text-3xl sm:text-4xl lg:text-5xl font-bold gradient-text mb-2">
                     <CountUp end={99} suffix="%" />
                   </div>
-                  <div className="text-muted-foreground">Довольных Пользователей</div>
+                  <div className="text-sm sm:text-base text-muted-foreground">Довольных Пользователей</div>
                 </div>
               </motion.div>
 
