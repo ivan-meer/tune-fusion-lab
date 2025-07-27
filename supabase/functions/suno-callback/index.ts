@@ -12,6 +12,7 @@ interface CallbackData {
     callbackType: 'complete' | 'error' | 'processing' | 'text';
     task_id?: string;
     taskId?: string;
+    progress?: number; // Add progress support
     // For music generation
     data?: Array<{
       id: string;
@@ -27,6 +28,7 @@ interface CallbackData {
       tags?: string;
       createTime: string;
       duration?: number;
+      progress?: number; // Add progress support here too
       // Additional fields for lyrics
       text?: string;
       lyrics?: string;
@@ -201,13 +203,25 @@ Deno.serve(async (req) => {
             lyricsContent = lyricsItem.text;
             console.log('✅ Extracted lyrics from lyricsData[0].text');
           }
-        } else if (firstItem.text && firstItem.text.length > 50 && !firstItem.text.includes('Создай профессиональную') && !firstItem.text.includes('Требования:')) {
+        } else if (firstItem.text && firstItem.text.length > 50 && 
+                   !firstItem.text.includes('Создай профессиональную') && 
+                   !firstItem.text.includes('Требования:') &&
+                   !firstItem.text.includes('многоголосый хор') &&
+                   !firstItem.text.includes('переменный темп') &&
+                   (firstItem.text.includes('[Verse]') || firstItem.text.includes('[Chorus]') || firstItem.text.includes('куплет'))) {
           lyricsContent = firstItem.text;
           console.log('✅ Extracted lyrics from "text" field');
-        } else if (firstItem.lyrics && firstItem.lyrics.length > 50 && !firstItem.lyrics.includes('Требования:')) {
+        } else if (firstItem.lyrics && firstItem.lyrics.length > 50 && 
+                   !firstItem.lyrics.includes('Требования:') &&
+                   !firstItem.lyrics.includes('многоголосый хор') &&
+                   (firstItem.lyrics.includes('[Verse]') || firstItem.lyrics.includes('[Chorus]') || firstItem.lyrics.includes('куплет'))) {
           lyricsContent = firstItem.lyrics;
           console.log('✅ Extracted lyrics from "lyrics" field');
-        } else if (firstItem.content && firstItem.content.length > 100 && !firstItem.content.includes('Создай профессиональную') && !firstItem.content.includes('Требования:')) {
+        } else if (firstItem.content && firstItem.content.length > 100 && 
+                   !firstItem.content.includes('Создай профессиональную') && 
+                   !firstItem.content.includes('Требования:') &&
+                   !firstItem.content.includes('многоголосый хор') &&
+                   (firstItem.content.includes('[Verse]') || firstItem.content.includes('[Chorus]') || firstItem.content.includes('куплет'))) {
           lyricsContent = firstItem.content;
           console.log('✅ Extracted lyrics from "content" field');
         } else {
@@ -417,12 +431,26 @@ Deno.serve(async (req) => {
     } else if (status === 'processing') {
       console.log('Processing progress callback');
       
+      // Extract progress from callback data if available
+      let progressValue = 50; // Default
+      
+      if (data.data && data.data[0] && data.data[0].progress) {
+        progressValue = Math.min(99, Math.max(1, data.data[0].progress));
+      } else if (data.progress) {
+        progressValue = Math.min(99, Math.max(1, data.progress));
+      } else {
+        // Increment existing progress slightly if no progress data
+        progressValue = Math.min(99, (job.progress || 0) + 5);
+      }
+      
+      console.log('Setting progress to:', progressValue);
+      
       // Update job progress
       const { error: updateError } = await supabase
         .from('generation_jobs')
         .update({
           status: 'processing',
-          progress: 50, // Intermediate progress
+          progress: progressValue,
           updated_at: new Date().toISOString()
         })
         .eq('id', job.id);
