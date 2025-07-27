@@ -790,6 +790,17 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_track_variations: {
+        Args: { track_id: string }
+        Returns: {
+          id: string
+          title: string
+          is_draft: boolean
+          parent_draft_id: string
+          variation_type: string
+          created_at: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
