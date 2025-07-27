@@ -92,74 +92,56 @@ Deno.serve(async (req) => {
     const lyricsData = await lyricsResponse.json();
     console.log('Suno lyrics response:', lyricsData);
 
-    // Extract lyrics from response with improved handling
-    let generatedLyrics = '';
-    
-    if (lyricsData.code === 200 && lyricsData.data) {
-      // Success response - extract lyrics from various possible fields
-      if (typeof lyricsData.data === 'string') {
-        generatedLyrics = lyricsData.data;
-      } else if (lyricsData.data.text) {
-        generatedLyrics = lyricsData.data.text;
-      } else if (lyricsData.data.lyrics) {
-        generatedLyrics = lyricsData.data.lyrics;
-      } else if (lyricsData.data.content) {
-        generatedLyrics = lyricsData.data.content;
-      } else if (Array.isArray(lyricsData.data) && lyricsData.data.length > 0) {
-        // If data is an array, take the first item's text
-        const firstItem = lyricsData.data[0];
-        generatedLyrics = firstItem.text || firstItem.lyrics || firstItem.content || '';
+    // Handle async response - Suno API returns taskId for async processing
+    if (lyricsData.code === 200 && lyricsData.data?.taskId) {
+      console.log('Lyrics generation started with taskId:', lyricsData.data.taskId);
+      
+      // Save initial record with pending status
+      const { data: savedLyrics, error: saveError } = await supabase
+        .from('lyrics')
+        .insert({
+          user_id: user.id,
+          title: `Lyrics for: ${lyricsRequest.prompt.substring(0, 50)}...`,
+          content: 'Генерация текста в процессе... Ожидайте результат.',
+          prompt: lyricsRequest.prompt,
+          style: lyricsRequest.style || 'pop',
+          language: lyricsRequest.language || 'russian',
+          provider: 'suno',
+          provider_lyrics_id: lyricsData.data.taskId,
+          generation_params: lyricsRequest,
+          status: 'pending' // Add status field to track generation progress
+        })
+        .select()
+        .single();
+
+      if (saveError) {
+        console.error('Error saving lyrics:', saveError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to save lyrics', details: saveError }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
-    } else if (lyricsData.lyrics) {
-      // Direct lyrics field
-      generatedLyrics = lyricsData.lyrics;
-    } else if (lyricsData.text) {
-      // Direct text field
-      generatedLyrics = lyricsData.text;
-    }
-    
-    // Fallback if no lyrics extracted
-    if (!generatedLyrics) {
-      console.error('Failed to extract lyrics from response:', lyricsData);
-      generatedLyrics = `Generated lyrics not available. API Response: ${JSON.stringify(lyricsData)}`;
-    }
-    
-    console.log('Extracted lyrics:', generatedLyrics.substring(0, 200) + '...');
 
-    // Save to database
-    const { data: savedLyrics, error: saveError } = await supabase
-      .from('lyrics')
-      .insert({
-        user_id: user.id,
-        title: `Lyrics for: ${lyricsRequest.prompt.substring(0, 50)}...`,
-        content: generatedLyrics,
-        prompt: lyricsRequest.prompt,
-        style: lyricsRequest.style || 'pop',
-        language: lyricsRequest.language || 'russian',
-        provider: 'suno',
-        provider_lyrics_id: lyricsData.data?.id || null,
-        generation_params: lyricsRequest
-      })
-      .select()
-      .single();
+      console.log('Lyrics generation task created successfully with taskId:', lyricsData.data.taskId);
 
-    if (saveError) {
-      console.error('Error saving lyrics:', saveError);
       return new Response(
-        JSON.stringify({ error: 'Failed to save lyrics', details: saveError }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          success: true,
+          status: 'pending',
+          taskId: lyricsData.data.taskId,
+          lyrics: savedLyrics,
+          message: 'Генерация текста начата. Результат будет доступен через несколько минут.'
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    }
-
-    console.log('Lyrics generated and saved successfully');
-
+    // If we reach here, the API didn't return a taskId - handle error
+    console.error('Unexpected Suno API response format:', lyricsData);
     return new Response(
-      JSON.stringify({
-        success: true,
-        lyrics: savedLyrics,
-        sunoData: lyricsData
+      JSON.stringify({ 
+        error: 'Unexpected API response format', 
+        details: lyricsData 
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
