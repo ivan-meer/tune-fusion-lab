@@ -56,6 +56,8 @@ Deno.serve(async (req) => {
     }
 
     // Generate lyrics using Suno API with proper parameters
+    const callbackUrl = `${supabaseUrl}/functions/v1/suno-callback`;
+    
     const requestBody = {
       prompt: lyricsRequest.prompt,
       model: 'V4_5', // Required parameter - using latest model
@@ -63,7 +65,8 @@ Deno.serve(async (req) => {
       title: `Generated Lyrics for ${lyricsRequest.style || 'pop'}`,
       style: lyricsRequest.style || 'pop',
       instrumental: false, // Required parameter - we want lyrics, not instrumental
-      language: lyricsRequest.language || 'russian'
+      language: lyricsRequest.language || 'russian',
+      callBackUrl: callbackUrl // Required for async processing
     };
 
     console.log('Sending request to Suno API:', requestBody);
