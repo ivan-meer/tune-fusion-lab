@@ -25,21 +25,21 @@ import {
 import { Track } from '@/hooks/useUserTracks';
 import { cn } from '@/lib/utils';
 
-// Memoized utility functions
-const formatDuration = memo((seconds?: number): string => {
+// Utility functions
+const formatDuration = (seconds?: number): string => {
   if (!seconds || !isFinite(seconds)) return '0:00';
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
-});
+};
 
-const formatDate = memo((dateString: string): string => {
+const formatDate = (dateString: string): string => {
   return new Date(dateString).toLocaleDateString('ru-RU', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric'
   });
-});
+};
 
 // Memoized artwork component
 const TrackArtwork = memo<{
