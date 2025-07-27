@@ -55,18 +55,40 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate lyrics using Suno API with proper parameters
+    // Generate lyrics using Suno Lyrics API
     const callbackUrl = `${supabaseUrl}/functions/v1/suno-callback`;
     
+    // Enhanced prompt for better lyrics generation
+    const enhancedPrompt = `Создай профессиональную лирику для ${lyricsRequest.style || 'pop'} песни на тему: "${lyricsRequest.prompt}". 
+      
+Требования:
+- Структура: [Verse], [Chorus], [Verse], [Chorus], [Bridge], [Chorus], [Outro]
+- Язык: ${lyricsRequest.language || 'русский'}
+- Стиль: ${lyricsRequest.style || 'pop'}
+- Настроение соответствует описанию: ${lyricsRequest.prompt}
+- Добавь теги в формате Suno AI в начале
+- Рифмы должны быть естественными и красивыми
+- Текст должен быть эмоциональным и запоминающимся
+- Используй современную поэтику
+
+Пример структуры с тегами:
+[Intro]
+[Verse]
+текст куплета...
+[Chorus]  
+текст припева...
+
+Создай полноценный текст песни с правильной структурой и тегами.`;
+    
     const requestBody = {
-      prompt: lyricsRequest.prompt,
-      model: 'V4_5', // Required parameter - using latest model
+      prompt: enhancedPrompt,
+      model: 'V4_5',
       customMode: true,
       title: `Generated Lyrics for ${lyricsRequest.style || 'pop'}`,
       style: lyricsRequest.style || 'pop',
-      instrumental: false, // Required parameter - we want lyrics, not instrumental
+      instrumental: false,
       language: lyricsRequest.language || 'russian',
-      callBackUrl: callbackUrl // Required for async processing
+      callBackUrl: callbackUrl
     };
 
     console.log('Sending request to Suno API:', requestBody);
@@ -103,7 +125,7 @@ Deno.serve(async (req) => {
           user_id: user.id,
           title: `Lyrics for: ${lyricsRequest.prompt.substring(0, 50)}...`,
           content: 'Генерация текста в процессе... Ожидайте результат.',
-          prompt: lyricsRequest.prompt,
+          prompt: enhancedPrompt,
           style: lyricsRequest.style || 'pop',
           language: lyricsRequest.language || 'russian',
           provider: 'suno',

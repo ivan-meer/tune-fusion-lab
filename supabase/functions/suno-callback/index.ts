@@ -166,17 +166,48 @@ Deno.serve(async (req) => {
     // Handle lyrics callback
     if (lyricsRecord) {
       console.log('Processing lyrics callback for record:', lyricsRecord.id);
-      console.log('Callback status:', status, 'Data:', data);
+      console.log('Callback status:', status, 'Data structure:', JSON.stringify(data, null, 2));
       
-      if (status === 'complete' && data.data) {
-        console.log('Updating lyrics with generated content');
-        // Extract lyrics content from the first item in data array
-        const lyricsContent = data.data[0]?.prompt || 'Лирика сгенерирована';
+      if (status === 'complete' && data.data && data.data.length > 0) {
+        console.log('Processing complete lyrics callback');
+        
+        // For lyrics generation, the actual lyrics text should be in the first data item
+        // Sometimes Suno returns the lyrics in different fields, let's check all possibilities
+        const firstItem = data.data[0];
+        let lyricsContent = '';
+        
+        // Try to extract lyrics from various possible fields
+        if (firstItem.lyrics) {
+          lyricsContent = firstItem.lyrics;
+        } else if (firstItem.text) {
+          lyricsContent = firstItem.text;
+        } else if (firstItem.content) {
+          lyricsContent = firstItem.content;
+        } else if (firstItem.generated_text) {
+          lyricsContent = firstItem.generated_text;
+        } else {
+          // If no specific lyrics field, this might be a music generation instead of lyrics
+          // Check if this is actually a music track by looking for audio_url
+          if (firstItem.audio_url) {
+            console.log('Detected music generation instead of lyrics, skipping lyrics update');
+            return new Response(JSON.stringify({ success: true, message: 'Music generation, not lyrics' }), {
+              status: 200,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+          
+          // Fallback: use a message indicating completion
+          lyricsContent = 'Лирика сгенерирована успешно, но текст не получен в ожидаемом формате.';
+        }
+        
+        console.log('Extracted lyrics content length:', lyricsContent.length);
+        console.log('First 200 chars:', lyricsContent.substring(0, 200));
         
         const { error: updateError } = await supabase
           .from('lyrics')
           .update({
             content: lyricsContent,
+            title: firstItem.title || lyricsRecord.title,
             updated_at: new Date().toISOString()
           })
           .eq('id', lyricsRecord.id);
@@ -205,8 +236,10 @@ Deno.serve(async (req) => {
         }
       } else if (status === 'text' && data.data) {
         console.log('Text generation callback - processing lyrics');
-        // Handle text generation callback specifically for lyrics
-        const lyricsContent = data.data[0]?.prompt || 'Лирика сгенерирована';
+        const firstItem = data.data[0];
+        let lyricsContent = firstItem.text || firstItem.content || firstItem.lyrics || 'Лирика сгенерирована';
+        
+        console.log('Text callback - lyrics content:', lyricsContent.substring(0, 200));
         
         const { error: updateError } = await supabase
           .from('lyrics')
@@ -222,7 +255,7 @@ Deno.serve(async (req) => {
           console.log('Lyrics updated from text callback successfully');
         }
       } else {
-        console.log('Lyrics callback received, status:', status, 'waiting for completion');
+        console.log('Lyrics callback received, status:', status, 'waiting for completion or different data structure');
       }
 
       return new Response(JSON.stringify({ success: true }), {
