@@ -8,7 +8,7 @@
 import React, { memo, useMemo, useCallback, forwardRef } from 'react';
 import { FixedSizeList as List } from 'react-window';
 import { Track } from '@/hooks/useUserTracks';
-import OptimizedTrackCard from './OptimizedTrackCard';
+import TrackCard from './TrackCard';
 import { cn } from '@/lib/utils';
 
 interface VirtualizedTrackListProps {
@@ -75,7 +75,7 @@ const ListItem = memo<{
 
   return (
     <div style={style} className="px-2">
-      <OptimizedTrackCard
+      <TrackCard
         track={track}
         viewMode={viewMode}
         isCurrentlyPlaying={currentPlayingId === track.id}
@@ -126,7 +126,7 @@ const GridItem = memo<{
 
         return (
           <div key={track.id} className="flex-1 min-w-0">
-            <OptimizedTrackCard
+            <TrackCard
               track={track}
               viewMode={viewMode}
               isCurrentlyPlaying={currentPlayingId === track.id}

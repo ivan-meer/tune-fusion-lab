@@ -1,419 +1,410 @@
 /**
- * TrackLibrary Component - Refactored Version
+ * Optimized Track Library Component
  * 
- * Enhanced music library with global audio player integration
- * Features comprehensive track management with modern UX/UI
- * 
- * Features:
- * - Integrated global audio player
- * - Responsive grid/list views
- * - Advanced filtering and search
- * - Real-time updates via Supabase
- * - Batch operations support
- * - Admin panel for debugging
- * 
- * @author AI Music Generator Team
- * @version 2.0.0 - Refactored with global player integration
+ * High-performance track library with React Query, virtualization,
+ * and proper memoization strategies
  */
 
-import { useState, useEffect } from 'react';
+import React, { memo, useState, useCallback, useMemo, Suspense } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { useOptimizedUserTracks } from '@/hooks/useOptimizedUserTracks';
-import { Track } from '@/hooks/useUserTracks';
-import { useToast } from '@/hooks/use-toast';
-import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
-import { useAudioPlayer } from '@/hooks/useAudioPlayer';
-import AdminPanel from '@/components/ui/admin-panel';
-import TrackCard from '@/components/music/library/TrackCard';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Music, 
-  Search,
+  Search, 
+  Grid, 
+  List, 
   Filter,
-  Grid,
-  List,
-  Sparkles,
+  SortAsc,
+  SortDesc,
+  RefreshCw,
   Settings,
-  Play,
-  RefreshCw
+  Download,
+  Upload
 } from 'lucide-react';
+import { useOptimizedUserTracks } from '@/hooks/useOptimizedUserTracks';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { Track } from '@/hooks/useUserTracks';
 
-/**
- * Main TrackLibrary component - now streamlined with new TrackCard
- * Focuses on state management and layout while delegating display to TrackCard
- */
+// Lazy load heavy components
+const VirtualizedTrackList = React.lazy(() => import('./library/VirtualizedTrackList'));
+const TrackCard = React.lazy(() => import('./library/TrackCard'));
 
-export default function TrackLibrary() {
-  // State management for UI controls
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterProvider, setFilterProvider] = useState<string>('all');
-  const [filterGenre, setFilterGenre] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [showAdmin, setShowAdmin] = useState(false);
-  
-  // Data management hooks
-  const { tracks, isLoading, error, reloadTracks, deleteTrack, likeTrack } = useOptimizedUserTracks();
-  const [playerState, playerActions] = useAudioPlayer();
-  const { toast } = useToast();
-  
-  // Real-time updates for tracks
-  useRealtimeUpdates({
-    onTrackUpdate: () => {
-      console.log('Real-time track update detected, refreshing...');
-      reloadTracks();
-      
-      toast({
-        title: "Новый трек добавлен!",
-        description: "Ваша библиотека была обновлена"
-      });
-    }
-  });
-  
-  // Auto-refresh tracks when component mounts
-  useEffect(() => {
-    // Tracks are automatically loaded by React Query hook
-  }, []);
+// Search and filter options
+const SORT_OPTIONS = [
+  { value: 'created_at', label: 'Дата создания' },
+  { value: 'title', label: 'Название' },
+  { value: 'play_count', label: 'Прослушивания' },
+  { value: 'like_count', label: 'Лайки' },
+  { value: 'duration', label: 'Длительность' }
+] as const;
 
-  // Filter tracks based on search and filters
-  const filteredTracks = tracks.filter(track => {
-    const matchesSearch = track.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         track.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesProvider = filterProvider === 'all' || track.provider === filterProvider;
-    const matchesGenre = filterGenre === 'all' || track.genre === filterGenre;
-    
-    return matchesSearch && matchesProvider && matchesGenre;
-  });
+const GENRE_OPTIONS = [
+  'pop', 'rock', 'electronic', 'jazz', 'classical', 'hip-hop', 'country', 'folk', 'ambient'
+] as const;
 
-  // Get unique genres for filter dropdown
-  const genres = Array.from(new Set(tracks.map(track => track.genre).filter(Boolean)));
-
-  /**
-   * Handle track like/unlike action
-   * Includes error handling and user feedback
-   */
-  const handleLike = async (trackId: string) => {
-    try {
-      await likeTrack(trackId);
-      toast({
-        title: "Лайк обновлен",
-        description: "Статус лайка для трека изменен"
-      });
-    } catch (error) {
-      console.error('Like track error:', error);
-      toast({
-        title: "Ошибка",
-        description: "Не удалось поставить лайк",
-        variant: "destructive"
-      });
-    }
-  };
-
-  /**
-   * Handle track deletion with confirmation
-   * TODO: Add confirmation dialog before deletion
-   */
-  const handleDelete = async (trackId: string, trackTitle: string) => {
-    try {
-      // Stop playback if this track is currently playing
-      if (playerState.currentTrack?.id === trackId) {
-        playerActions.stop();
-      }
-      
-      await deleteTrack(trackId);
-      toast({
-        title: "Трек удален",
-        description: `"${trackTitle}" был удален из библиотеки`
-      });
-    } catch (error) {
-      console.error('Delete track error:', error);
-      toast({
-        title: "Ошибка",
-        description: "Не удалось удалить трек",
-        variant: "destructive"
-      });
-    }
-  };
-
-  /**
-   * Handle track download
-   * TODO: Implement proper download with progress tracking
-   */
-  const handleDownload = (track: Track) => {
-    if (!track.file_url) {
-      toast({
-        title: "Ошибка",
-        description: "Файл трека недоступен для скачивания",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Simple download implementation
-    const link = document.createElement('a');
-    link.href = track.file_url;
-    link.download = `${track.title}.mp3`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    toast({
-      title: "Скачивание началось",
-      description: `Трек "${track.title}" загружается`
-    });
-  };
-
-  /**
-   * Handle track sharing
-   * TODO: Implement Web Share API with fallbacks
-   */
-  const handleShare = async (track: Track) => {
-    try {
-      if (navigator.share && track.file_url) {
-        await navigator.share({
-          title: track.title,
-          text: `Послушайте этот трек: ${track.title}`,
-          url: track.file_url
-        });
-      } else {
-        // Fallback to copying link
-        await navigator.clipboard.writeText(track.file_url || window.location.href);
-        toast({
-          title: "Ссылка скопирована",
-          description: "Ссылка на трек скопирована в буфер обмена"
-        });
-      }
-    } catch (error) {
-      console.error('Share track error:', error);
-      toast({
-        title: "Ошибка",
-        description: "Не удалось поделиться треком",
-        variant: "destructive"
-      });
-    }
-  };
-
-  /**
-   * Play all filtered tracks as playlist
-   * Sets up global player with current filtered track list
-   */
-  const playAllTracks = () => {
-    if (filteredTracks.length === 0) return;
-    
-    playerActions.playTrack(filteredTracks[0], filteredTracks);
-    toast({
-      title: "Плейлист запущен",
-      description: `Запущено воспроизведение ${filteredTracks.length} треков`
-    });
-  };
-
-  if (isLoading) {
-  return (
-    <div className="space-y-6">
-      {showAdmin && <AdminPanel />}
-      
-      <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Music className="h-5 w-5" />
-              Моя библиотека
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center space-y-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                <p className="text-muted-foreground">Загружаем ваши треки...</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+// Loading skeleton component
+const TrackListSkeleton = memo(() => (
+  <div className="space-y-4">
+    {Array.from({ length: 6 }).map((_, i) => (
+      <div key={i} className="flex items-center gap-4 p-4 border rounded-lg">
+        <Skeleton className="w-12 h-12 rounded" />
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-4 w-48" />
+          <Skeleton className="h-3 w-32" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="w-8 h-8 rounded" />
+          <Skeleton className="w-8 h-8 rounded" />
+          <Skeleton className="w-8 h-8 rounded" />
+        </div>
       </div>
-    );
-  }
+    ))}
+  </div>
+));
 
+TrackListSkeleton.displayName = 'TrackListSkeleton';
+
+// Filter bar component
+const FilterBar = memo<{
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  selectedGenre: string | null;
+  onGenreChange: (genre: string | null) => void;
+  sortBy: string;
+  onSortChange: (sort: string) => void;
+  sortOrder: 'asc' | 'desc';
+  onSortOrderChange: (order: 'asc' | 'desc') => void;
+  viewMode: 'grid' | 'list';
+  onViewModeChange: (mode: 'grid' | 'list') => void;
+  onRefresh: () => void;
+  isRefreshing?: boolean;
+}>(({
+  searchQuery,
+  onSearchChange,
+  selectedGenre,
+  onGenreChange,
+  sortBy,
+  onSortChange,
+  sortOrder,
+  onSortOrderChange,
+  viewMode,
+  onViewModeChange,
+  onRefresh,
+  isRefreshing
+}) => {
+  return (
+    <div className="space-y-4">
+      {/* Search and actions */}
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <Input
+            placeholder="Поиск треков..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onRefresh}
+          disabled={isRefreshing}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
+          Обновить
+        </Button>
+        
+        <div className="flex items-center border rounded-lg">
+          <Button
+            variant={viewMode === 'list' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => onViewModeChange('list')}
+            className="rounded-r-none"
+          >
+            <List className="w-4 h-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'grid' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => onViewModeChange('grid')}
+            className="rounded-l-none"
+          >
+            <Grid className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+      
+      {/* Filters and sorting */}
+      <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <span className="text-muted-foreground">Жанр:</span>
+          <select
+            value={selectedGenre || ''}
+            onChange={(e) => onGenreChange(e.target.value || null)}
+            className="bg-background border rounded px-2 py-1"
+          >
+            <option value="">Все жанры</option>
+            {GENRE_OPTIONS.map(genre => (
+              <option key={genre} value={genre}>
+                {genre.charAt(0).toUpperCase() + genre.slice(1)}
+              </option>
+            ))}
+          </select>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground">Сортировка:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => onSortChange(e.target.value)}
+            className="bg-background border rounded px-2 py-1"
+          >
+            {SORT_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onSortOrderChange(sortOrder === 'asc' ? 'desc' : 'asc')}
+            className="p-1"
+          >
+            {sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+FilterBar.displayName = 'FilterBar';
+
+// Main library component
+const TrackLibrary = memo(() => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+
+  const { toast } = useToast();
+  const [playerState, playerActions] = useAudioPlayer();
+
+  // Use optimized tracks hook
+  const {
+    tracks,
+    isLoading,
+    error,
+    isRefetching,
+    deleteTrack,
+    updateTrack,
+    likeTrack,
+    reloadTracks,
+    isDeletingTrack,
+    isLikingTrack
+  } = useOptimizedUserTracks();
+
+  // Memoized filtered and sorted tracks
+  const filteredAndSortedTracks = useMemo(() => {
+    let filtered = tracks;
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(track =>
+        track.title.toLowerCase().includes(query) ||
+        track.description?.toLowerCase().includes(query) ||
+        track.genre?.toLowerCase().includes(query) ||
+        track.tags?.some(tag => tag.toLowerCase().includes(query))
+      );
+    }
+
+    // Apply genre filter
+    if (selectedGenre) {
+      filtered = filtered.filter(track => 
+        track.genre?.toLowerCase() === selectedGenre.toLowerCase()
+      );
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue: any = a[sortBy as keyof Track];
+      let bValue: any = b[sortBy as keyof Track];
+
+      // Handle different data types
+      if (sortBy === 'created_at') {
+        aValue = new Date(aValue).getTime();
+        bValue = new Date(bValue).getTime();
+      } else if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue?.toLowerCase() || '';
+      } else if (typeof aValue === 'number') {
+        aValue = aValue || 0;
+        bValue = bValue || 0;
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
+    return filtered;
+  }, [tracks, searchQuery, selectedGenre, sortBy, sortOrder]);
+
+  // Callback handlers with useCallback for performance
+  const handleTrackPlay = useCallback((track: Track) => {
+    if (playerState.currentTrack?.id === track.id) {
+      playerActions.togglePlayPause();
+    } else {
+      playerActions.playTrack(track, filteredAndSortedTracks);
+    }
+  }, [playerState.currentTrack, playerActions, filteredAndSortedTracks]);
+
+  const handleTrackLike = useCallback((trackId: string) => {
+    likeTrack(trackId);
+  }, [likeTrack]);
+
+  const handleTrackDelete = useCallback((trackId: string) => {
+    deleteTrack(trackId);
+  }, [deleteTrack]);
+
+  const handleTrackDownload = useCallback((track: Track) => {
+    if (track.file_url) {
+      const link = document.createElement('a');
+      link.href = track.file_url;
+      link.download = `${track.title}.mp3`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Загрузка начата",
+        description: `Скачивание "${track.title}"`,
+      });
+    }
+  }, [toast]);
+
+  // Error state
   if (error) {
     return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Music className="h-5 w-5" />
-              Моя библиотека
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center space-y-4">
-                <p className="text-destructive">{error}</p>
-                <Button variant="outline" onClick={() => window.location.reload()}>
-                  Попробовать снова
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardContent className="p-8 text-center">
+          <div className="text-destructive mb-4">
+            <Music className="w-12 h-12 mx-auto mb-2 opacity-50" />
+            <p className="text-lg font-semibold">Ошибка загрузки треков</p>
+            <p className="text-sm text-muted-foreground">{error}</p>
+          </div>
+          <Button onClick={reloadTracks} variant="outline">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Попробовать снова
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
     <div className="space-y-6">
-      {showAdmin && <AdminPanel />}
-      
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Моя библиотека</h2>
+          <p className="text-muted-foreground">
+            {isLoading ? 'Загрузка...' : `${filteredAndSortedTracks.length} из ${tracks.length} треков`}
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="flex items-center gap-1">
+            <Music className="w-3 h-3" />
+            {tracks.length} треков
+          </Badge>
+        </div>
+      </div>
+
+      {/* Filter Bar */}
+      <FilterBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        selectedGenre={selectedGenre}
+        onGenreChange={setSelectedGenre}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        sortOrder={sortOrder}
+        onSortOrderChange={setSortOrder}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        onRefresh={reloadTracks}
+        isRefreshing={isRefetching}
+      />
+
+      {/* Track List */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Music className="h-5 w-5" />
-              Моя библиотека
-              <Badge variant="secondary" className="ml-2">
-                {tracks.length} треков
-              </Badge>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-6">
+              <TrackListSkeleton />
             </div>
-            <div className="flex items-center gap-2">
-              {/* Play all button */}
-              {filteredTracks.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={playAllTracks}
-                  className="gap-1"
+          ) : filteredAndSortedTracks.length === 0 ? (
+            <div className="p-8 text-center">
+              <Music className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+              <h3 className="text-lg font-semibold mb-2">
+                {searchQuery || selectedGenre ? 'Треки не найдены' : 'Библиотека пуста'}
+              </h3>
+              <p className="text-muted-foreground mb-4">
+                {searchQuery || selectedGenre 
+                  ? 'Попробуйте изменить критерии поиска'
+                  : 'Создайте свой первый трек, чтобы он появился здесь'
+                }
+              </p>
+              {(searchQuery || selectedGenre) && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedGenre(null);
+                  }}
                 >
-                  <Play className="h-4 w-4" />
-                  Играть все ({filteredTracks.length})
+                  Сбросить фильтры
                 </Button>
               )}
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAdmin(!showAdmin)}
-              >
-                <Settings className="h-4 w-4 mr-1" />
-                {showAdmin ? 'Скрыть логи' : 'Показать логи'}
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={reloadTracks}
-                disabled={isLoading}
-              >
-                <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
-                {isLoading ? 'Обновление...' : 'Обновить'}
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Search and Filters */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Поиск треков..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Select value={filterProvider} onValueChange={setFilterProvider}>
-                <SelectTrigger className="w-[130px]">
-                  <SelectValue placeholder="Провайдер" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все</SelectItem>
-                  <SelectItem value="suno">Suno AI</SelectItem>
-                  <SelectItem value="mureka">Mureka AI</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Select value={filterGenre} onValueChange={setFilterGenre}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="Жанр" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все жанры</SelectItem>
-                  {genres.map(genre => (
-                    <SelectItem key={genre} value={genre!}>
-                      {genre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <div className="flex border rounded-md">
-                <Button
-                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('grid')}
-                >
-                  <Grid className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Tracks Display */}
-          {filteredTracks.length === 0 ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center space-y-4">
-                <div className="p-4 rounded-full bg-muted w-fit mx-auto">
-                  <Sparkles className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-medium">
-                  {tracks.length === 0 ? 'Пока нет треков' : 'Треки не найдены'}
-                </h3>
-                <p className="text-muted-foreground max-w-md">
-                  {tracks.length === 0 
-                    ? 'Создайте свой первый трек с помощью ИИ в студии'
-                    : 'Попробуйте изменить параметры поиска'
-                  }
-                </p>
-              </div>
             </div>
           ) : (
-            <div className={
-              viewMode === 'grid' 
-                ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4'
-                : 'space-y-3'
-            }>
-              {filteredTracks.map((track) => (
-                <TrackCard
-                  key={track.id}
-                  track={track}
-                  viewMode={viewMode}
-                  isCurrentlyPlaying={playerState.currentTrack?.id === track.id}
-                  isPlaying={playerState.currentTrack?.id === track.id && playerState.isPlaying}
-                  onLike={() => handleLike(track.id)}
-                  onDelete={() => handleDelete(track.id, track.title)}
-                  onDownload={() => handleDownload(track)}
-                  onShare={() => handleShare(track)}
-                  onPlay={() => {
-                    if (playerState.currentTrack?.id === track.id) {
-                      playerActions.togglePlayPause();
-                    } else {
-                      playerActions.playTrack(track, filteredTracks);
-                    }
-                  }}
-                />
-              ))}
-            </div>
+            <Suspense fallback={<TrackListSkeleton />}>
+              <VirtualizedTrackList
+                tracks={filteredAndSortedTracks}
+                viewMode={viewMode}
+                currentPlayingId={playerState.currentTrack?.id}
+                isPlaying={playerState.isPlaying}
+                onTrackLike={handleTrackLike}
+                onTrackDelete={handleTrackDelete}
+                onTrackPlay={handleTrackPlay}
+                isLikingTrack={isLikingTrack}
+                isDeletingTrack={isDeletingTrack}
+                height={600}
+              />
+            </Suspense>
           )}
         </CardContent>
       </Card>
     </div>
   );
-}
+});
+
+TrackLibrary.displayName = 'TrackLibrary';
+
+export default TrackLibrary;
