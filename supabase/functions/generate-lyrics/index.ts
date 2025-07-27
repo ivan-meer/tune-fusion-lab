@@ -108,8 +108,7 @@ Deno.serve(async (req) => {
           language: lyricsRequest.language || 'russian',
           provider: 'suno',
           provider_lyrics_id: lyricsData.data.taskId,
-          generation_params: lyricsRequest,
-          status: 'pending' // Add status field to track generation progress
+          generation_params: lyricsRequest
         })
         .select()
         .single();
