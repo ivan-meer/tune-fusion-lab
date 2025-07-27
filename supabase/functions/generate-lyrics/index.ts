@@ -67,6 +67,7 @@ Deno.serve(async (req) => {
       prompt: lyricsRequest.prompt,
       style: lyricsRequest.style || 'pop',
       title: `Lyrics: ${lyricsRequest.prompt.substring(0, 50)}...`,
+      model: 'V4_5', // Добавляем обязательный параметр модели
       customMode: true,
       instrumental: false,
       make_instrumental: false,
