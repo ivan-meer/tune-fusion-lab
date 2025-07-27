@@ -632,6 +632,48 @@ export type Database = {
           },
         ]
       }
+      track_variations: {
+        Row: {
+          child_track_id: string
+          created_at: string
+          id: string
+          parent_track_id: string
+          updated_at: string
+          variation_type: string
+        }
+        Insert: {
+          child_track_id: string
+          created_at?: string
+          id?: string
+          parent_track_id: string
+          updated_at?: string
+          variation_type?: string
+        }
+        Update: {
+          child_track_id?: string
+          created_at?: string
+          id?: string
+          parent_track_id?: string
+          updated_at?: string
+          variation_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "track_variations_child_track_id_fkey"
+            columns: ["child_track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "track_variations_parent_track_id_fkey"
+            columns: ["parent_track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tracks: {
         Row: {
           artwork_url: string | null
@@ -647,11 +689,13 @@ export type Database = {
           genre: string | null
           id: string
           is_commercial: boolean
+          is_draft: boolean
           is_public: boolean
           key_signature: string | null
           like_count: number
           lyrics: string | null
           mood: string | null
+          parent_draft_id: string | null
           play_count: number
           provider: string
           provider_track_id: string | null
@@ -674,11 +718,13 @@ export type Database = {
           genre?: string | null
           id?: string
           is_commercial?: boolean
+          is_draft?: boolean
           is_public?: boolean
           key_signature?: string | null
           like_count?: number
           lyrics?: string | null
           mood?: string | null
+          parent_draft_id?: string | null
           play_count?: number
           provider: string
           provider_track_id?: string | null
@@ -701,11 +747,13 @@ export type Database = {
           genre?: string | null
           id?: string
           is_commercial?: boolean
+          is_draft?: boolean
           is_public?: boolean
           key_signature?: string | null
           like_count?: number
           lyrics?: string | null
           mood?: string | null
+          parent_draft_id?: string | null
           play_count?: number
           provider?: string
           provider_track_id?: string | null
@@ -714,7 +762,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tracks_parent_draft_id_fkey"
+            columns: ["parent_draft_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

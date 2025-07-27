@@ -14,12 +14,13 @@ import {
   Sparkles
 } from 'lucide-react';
 import { GenerationJob } from '@/hooks/useMusicGeneration';
+import { EnhancedGenerationJob } from '@/types/musicGeneration';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import GenerationSteps, { GenerationStep } from './GenerationSteps';
 import { cn } from '@/lib/utils';
 
 interface GenerationProgressProps {
-  job: GenerationJob;
+  job: GenerationJob | EnhancedGenerationJob;
   onReset: () => void;
   onRetry?: () => void;
 }
@@ -61,6 +62,10 @@ export default function GenerationProgress({ job, onReset, onRetry }: Generation
   const config = statusConfig[job.status];
   const Icon = config.icon;
 
+  // Check if this is an enhanced job with detailed steps
+  const isEnhanced = 'steps' in job && job.steps;
+  const enhancedJob = isEnhanced ? job as EnhancedGenerationJob : null;
+
   useEffect(() => {
     if (job.status === 'processing') {
       setAnimateProgress(true);
@@ -70,31 +75,85 @@ export default function GenerationProgress({ job, onReset, onRetry }: Generation
   }, [job.progress]);
 
   return (
-    <Card className={`${config.borderColor} border-2`}>
-      <CardHeader className={`${config.bgColor} rounded-t-lg`}>
-        <CardTitle className="flex items-center gap-3">
-          <Icon 
-            className={`h-5 w-5 ${config.color} ${job.status === 'processing' ? 'animate-spin' : ''}`}
-          />
-          <span className={config.color}>Генерация музыки</span>
-          <Badge variant="outline" className={`ml-auto ${config.color}`}>
-            {config.label}
-          </Badge>
-        </CardTitle>
-      </CardHeader>
-      
-      <CardContent className="p-6 space-y-4">
-        {/* Progress Bar */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="font-medium">Прогресс</span>
-            <span className={config.color}>{Math.round(job.progress)}%</span>
-          </div>
-          <Progress 
-            value={job.progress} 
-            className={`h-3 transition-all duration-300 ${animateProgress ? 'scale-105' : ''}`}
-          />
-        </div>
+    <div className="space-y-4">
+      {/* Main Progress Card */}
+      <Card className={`${config.borderColor} border-2`}>
+        <CardHeader className={`${config.bgColor} rounded-t-lg`}>
+          <CardTitle className="flex items-center gap-3">
+            <Icon 
+              className={`h-5 w-5 ${config.color} ${job.status === 'processing' ? 'animate-spin' : ''}`}
+            />
+            <span className={config.color}>
+              {enhancedJob ? 'Продвинутая генерация музыки' : 'Генерация музыки'}
+            </span>
+            <Badge variant="outline" className={`ml-auto ${config.color}`}>
+              {config.label}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        
+        <CardContent className="p-6 space-y-4">
+          {/* Enhanced Steps or Basic Progress */}
+          {enhancedJob?.steps ? (
+            <GenerationSteps steps={enhancedJob.steps} />
+          ) : (
+            <>
+              {/* Basic Progress Bar */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium">Прогресс</span>
+                  <span className={config.color}>{Math.round(job.progress)}%</span>
+                </div>
+                <Progress 
+                  value={job.progress} 
+                  className={`h-3 transition-all duration-300 ${animateProgress ? 'scale-105' : ''}`}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Enhanced Information */}
+          {enhancedJob && (
+            <div className="space-y-3">
+              {/* Generation Stats */}
+              {enhancedJob.creditsUsed > 0 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Использовано кредитов:</span>
+                  <span className="font-medium">{enhancedJob.creditsUsed}</span>
+                </div>
+              )}
+              
+              {/* Time Estimate */}
+              {enhancedJob.estimatedTimeRemaining && job.status === 'processing' && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Осталось времени:</span>
+                  <span className="font-medium">~{Math.round(enhancedJob.estimatedTimeRemaining / 1000)}с</span>
+                </div>
+              )}
+
+              {/* Generated Content Preview */}
+              {enhancedJob.generatedContent && (
+                <div className="p-3 bg-muted/50 rounded-lg border">
+                  <h4 className="text-sm font-medium mb-2">Сгенерированный контент:</h4>
+                  {enhancedJob.generatedContent.enhancedPrompt && (
+                    <div className="text-xs text-muted-foreground mb-1">
+                      <strong>Улучшенное описание:</strong> {enhancedJob.generatedContent.enhancedPrompt.slice(0, 100)}...
+                    </div>
+                  )}
+                  {enhancedJob.generatedContent.generatedLyrics && (
+                    <div className="text-xs text-muted-foreground mb-1">
+                      <strong>Сгенерированный текст:</strong> {enhancedJob.generatedContent.generatedLyrics.slice(0, 80)}...
+                    </div>
+                  )}
+                  {enhancedJob.generatedContent.styleDescription && (
+                    <div className="text-xs text-muted-foreground">
+                      <strong>Стиль:</strong> {enhancedJob.generatedContent.styleDescription}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
         {/* Status Message */}
         <div className="text-sm text-muted-foreground">
@@ -189,5 +248,6 @@ export default function GenerationProgress({ job, onReset, onRetry }: Generation
         </div>
       </CardContent>
     </Card>
+    </div>
   );
 }

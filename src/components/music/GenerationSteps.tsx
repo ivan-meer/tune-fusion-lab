@@ -65,6 +65,17 @@ export default function GenerationSteps({ steps, className }: GenerationStepsPro
             <span className="text-muted-foreground">{Math.round(overallProgress)}%</span>
           </div>
           <Progress value={overallProgress} className="h-2" />
+          
+          {/* Real-time progress indicator */}
+          {currentStep >= 0 && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+              Выполняется: {steps[currentStep]?.title}
+              {steps[currentStep]?.progress !== undefined && (
+                <span className="ml-1">({Math.round(steps[currentStep].progress || 0)}%)</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Step list */}
