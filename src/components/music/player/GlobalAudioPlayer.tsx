@@ -16,7 +16,7 @@
  * @version 1.0.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -32,10 +32,12 @@ import {
   Repeat1,
   Shuffle,
   Music,
-  Loader2
+  Loader2,
+  ChevronUp
 } from 'lucide-react';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { cn } from '@/lib/utils';
+import ExpandedPlayer from './ExpandedPlayer';
 
 /**
  * Progress bar component with seeking capability
@@ -324,6 +326,7 @@ function AdditionalControls({
  */
 export default function GlobalAudioPlayer() {
   const [playerState, playerActions] = useAudioPlayer();
+  const [isExpanded, setIsExpanded] = useState(false);
   
   // Don't render if no current track
   if (!playerState.currentTrack) {
@@ -352,6 +355,12 @@ export default function GlobalAudioPlayer() {
       {/* Spacer to prevent content from being hidden behind fixed player */}
       <div className="h-20" />
       
+      {/* Expanded Player */}
+      <ExpandedPlayer 
+        isExpanded={isExpanded}
+        onToggleExpanded={() => setIsExpanded(!isExpanded)}
+      />
+      
       {/* Fixed audio player */}
       <Card className="fixed bottom-0 left-0 right-0 z-50 rounded-none border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
         <div className="p-4">
@@ -360,15 +369,26 @@ export default function GlobalAudioPlayer() {
             {/* Track info and main controls */}
             <div className="flex items-center justify-between">
               <TrackInfo track={playerState.currentTrack} className="flex-1 min-w-0" />
-              <PlaybackControls
-                isPlaying={playerState.isPlaying}
-                isLoading={playerState.isLoading}
-                canGoPrevious={canGoPrevious}
-                canGoNext={canGoNext}
-                onPrevious={playerActions.previousTrack}
-                onTogglePlayPause={playerActions.togglePlayPause}
-                onNext={playerActions.nextTrack}
-              />
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="p-2"
+                  aria-label="Развернуть плеер"
+                >
+                  <ChevronUp className="w-4 h-4" />
+                </Button>
+                <PlaybackControls
+                  isPlaying={playerState.isPlaying}
+                  isLoading={playerState.isLoading}
+                  canGoPrevious={canGoPrevious}
+                  canGoNext={canGoNext}
+                  onPrevious={playerActions.previousTrack}
+                  onTogglePlayPause={playerActions.togglePlayPause}
+                  onNext={playerActions.nextTrack}
+                />
+              </div>
             </div>
             
             {/* Progress bar */}
@@ -422,6 +442,15 @@ export default function GlobalAudioPlayer() {
             
             {/* Right controls */}
             <div className="flex items-center gap-4 w-48 flex-shrink-0 justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="p-2"
+                aria-label="Развернуть плеер"
+              >
+                <ChevronUp className="w-4 h-4" />
+              </Button>
               <AdditionalControls
                 shuffleEnabled={playerState.shuffleEnabled}
                 repeatMode={playerState.repeatMode}

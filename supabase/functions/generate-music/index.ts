@@ -358,11 +358,11 @@ async function generateWithSuno(
   // Build official Suno API request payload
   const generateRequest: any = {
     prompt: prompt,
-    style: style,
+    tags: style,
     title: prompt.slice(0, 80),
-    customMode: true,
-    instrumental: instrumental,
+    make_instrumental: instrumental,
     model: model,
+    wait_audio: false,
     callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
   };
 
@@ -374,12 +374,12 @@ async function generateWithSuno(
   console.log('=== FIXED REQUEST PAYLOAD ===');
   console.log(JSON.stringify(generateRequest, null, 2));
   console.log('Parameters included:', Object.keys(generateRequest));
-  console.log('instrumental type:', typeof generateRequest.instrumental, 'value:', generateRequest.instrumental);
-  console.log('customMode type:', typeof generateRequest.customMode, 'value:', generateRequest.customMode);
+  console.log('make_instrumental type:', typeof generateRequest.make_instrumental, 'value:', generateRequest.make_instrumental);
+  console.log('wait_audio type:', typeof generateRequest.wait_audio, 'value:', generateRequest.wait_audio);
   console.log('Lyrics present:', !!generateRequest.lyrics);
 
   const result = await retryApiCall(async () => {
-    const response = await fetch('https://api.sunoapi.org/api/v1/generate', {
+    const response = await fetch('https://api.sunoapi.org/api/v1/music/generate', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
@@ -450,7 +450,7 @@ async function generateLyricsWithSuno(prompt: string, style: string): Promise<{l
   };
   
   const response = await retryApiCall(async () => {
-    const res = await fetch('https://api.sunoapi.org/api/v1/generate/lyrics', {
+    const res = await fetch('https://api.sunoapi.org/api/v1/lyrics/generate', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
@@ -492,7 +492,7 @@ async function pollSunoLyrics(taskId: string): Promise<string> {
     await new Promise(resolve => setTimeout(resolve, 3000));
     
     try {
-      const response = await fetch(`https://api.sunoapi.org/api/v1/lyrics/record-info?taskId=${taskId}`, {
+      const response = await fetch(`https://api.sunoapi.org/api/v1/music/details?taskId=${taskId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${sunoApiKey}`,
@@ -576,7 +576,7 @@ async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: str
 
   let generationResult = null;
   let attempts = 0;
-  const maxAttempts = 60; // 5 minutes maximum
+  const maxAttempts = 120; // 10 minutes maximum
   const pollInterval = 5000; // 5 seconds
 
   while (attempts < maxAttempts) {
@@ -627,7 +627,7 @@ async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: str
   }
 
   if (!generationResult) {
-    throw new Error('Suno generation timed out after 5 minutes');
+    throw new Error('Suno generation timed out after 10 minutes');
   }
 
   if (!generationResult.audio_url) {

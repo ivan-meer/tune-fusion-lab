@@ -104,19 +104,52 @@ Deno.serve(async (req) => {
     if (status === 'complete' && result) {
       console.log('Processing completed callback');
       
+      // Save file to Supabase Storage if needed
+      let finalFileUrl = result.audio_url;
+      let finalArtworkUrl = result.image_url;
+      
+      try {
+        // Download and save to our storage bucket
+        if (result.audio_url && result.audio_url.startsWith('http')) {
+          const audioResponse = await fetch(result.audio_url);
+          if (audioResponse.ok) {
+            const audioBlob = await audioResponse.arrayBuffer();
+            const fileName = `${result.id || Date.now()}.mp3`;
+            
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('audio-tracks')
+              .upload(fileName, audioBlob, {
+                contentType: 'audio/mpeg',
+                duplex: 'replace'
+              });
+            
+            if (!uploadError && uploadData) {
+              const { data: { publicUrl } } = supabase.storage
+                .from('audio-tracks')
+                .getPublicUrl(fileName);
+              finalFileUrl = publicUrl;
+              console.log('Saved audio to storage:', finalFileUrl);
+            }
+          }
+        }
+      } catch (storageError) {
+        console.warn('Failed to save to storage, using original URL:', storageError);
+      }
+      
       // Create track record
       const { data: track, error: trackError } = await supabase
         .from('tracks')
         .insert({
           user_id: job.user_id,
-          title: result.title || 'Generated Track',
-          file_url: result.audio_url,
-          artwork_url: result.image_url,
-          duration: result.duration || 0,
+          title: result.title || job.request_params?.prompt?.slice(0, 50) || 'Generated Track',
+          description: job.request_params?.prompt || '',
+          file_url: finalFileUrl,
+          artwork_url: finalArtworkUrl,
+          duration: result.duration || 120,
           provider: 'suno',
           provider_track_id: result.id,
-          lyrics: result.prompt,
-          genre: result.tags,
+          lyrics: job.request_params?.lyrics || result.prompt,
+          genre: job.request_params?.style || result.tags || 'pop',
           generation_params: job.request_params,
           is_public: false,
           is_commercial: false

@@ -33,7 +33,6 @@ import {
   Volume2
 } from 'lucide-react';
 import { Track } from '@/hooks/useUserTracks';
-import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { cn } from '@/lib/utils';
 
 /**
@@ -54,6 +53,8 @@ export interface TrackCardProps {
   onDownload?: () => void;
   /** Callback when user shares track */
   onShare?: () => void;
+  /** Callback when user plays track */
+  onPlay?: () => void;
   /** Optional className for styling */
   className?: string;
 }
@@ -289,21 +290,18 @@ function ListViewLayout({
   onDelete, 
   onDownload, 
   onShare, 
-  playerActions,
+  onPlay,
   className 
-}: TrackCardProps & { playerActions: any }) {
-  const isCurrentTrack = playerActions.currentTrack?.id === track.id;
-  const isPlaying = isCurrentTrack && playerActions.isPlaying;
+}: TrackCardProps) {
+  const isCurrentTrack = isCurrentlyPlaying;
+  const isPlaying = isCurrentTrack; // For now, assume playing if current
 
   /**
    * Handle track playback
-   * Either plays this track or pauses if already playing
    */
   const handlePlay = () => {
-    if (isCurrentTrack) {
-      playerActions.togglePlayPause();
-    } else {
-      playerActions.playTrack(track);
+    if (onPlay) {
+      onPlay();
     }
   };
 
@@ -321,7 +319,7 @@ function ListViewLayout({
           isPlaying={isPlaying}
           isCurrentTrack={isCurrentTrack}
           onPlay={handlePlay}
-          onPause={playerActions.togglePlayPause}
+          onPause={handlePlay}
           className="inset-0"
         />
       </div>
@@ -379,20 +377,18 @@ function GridViewLayout({
   onDelete, 
   onDownload, 
   onShare, 
-  playerActions,
+  onPlay,
   className 
-}: TrackCardProps & { playerActions: any }) {
-  const isCurrentTrack = playerActions.currentTrack?.id === track.id;
-  const isPlaying = isCurrentTrack && playerActions.isPlaying;
+}: TrackCardProps) {
+  const isCurrentTrack = isCurrentlyPlaying;
+  const isPlaying = isCurrentTrack;
 
   /**
    * Handle track playback
    */
   const handlePlay = () => {
-    if (isCurrentTrack) {
-      playerActions.togglePlayPause();
-    } else {
-      playerActions.playTrack(track);
+    if (onPlay) {
+      onPlay();
     }
   };
 
@@ -410,7 +406,7 @@ function GridViewLayout({
             isPlaying={isPlaying}
             isCurrentTrack={isCurrentTrack}
             onPlay={handlePlay}
-            onPause={playerActions.togglePlayPause}
+            onPause={handlePlay}
             className="bottom-2 right-2"
           />
         </div>
@@ -477,10 +473,9 @@ export default function TrackCard({
   onDelete,
   onDownload,
   onShare,
+  onPlay,
   className
 }: TrackCardProps) {
-  const [playerState, playerActions] = useAudioPlayer();
-  
   // Common props for both layouts
   const commonProps = {
     track,
@@ -490,11 +485,7 @@ export default function TrackCard({
     onDelete,
     onDownload,
     onShare,
-    playerActions: {
-      ...playerActions,
-      currentTrack: playerState.currentTrack,
-      isPlaying: playerState.isPlaying
-    },
+    onPlay,
     className
   };
 

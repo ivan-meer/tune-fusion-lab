@@ -410,6 +410,13 @@ export default function TrackLibrary() {
                   onDelete={() => handleDelete(track.id, track.title)}
                   onDownload={() => handleDownload(track)}
                   onShare={() => handleShare(track)}
+                  onPlay={() => {
+                    if (playerState.currentTrack?.id === track.id) {
+                      playerActions.togglePlayPause();
+                    } else {
+                      playerActions.playTrack(track, filteredTracks);
+                    }
+                  }}
                 />
               ))}
             </div>
