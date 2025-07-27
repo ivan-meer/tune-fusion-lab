@@ -27,9 +27,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import Header from '@/components/layout/Header';
-import MusicStudio from '@/components/music/MusicStudio';
-import MusicAidPro from '@/components/music/MusicAidPro';
-import CompleteWorkflow from '@/components/music/CompleteWorkflow';
+import MusicApp from '@/components/music/simplified/MusicApp';
 import { 
   ParallaxScroll, 
   CountUp, 
@@ -87,8 +85,8 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <main className="py-4">
-          <MusicAidPro />
+        <main>
+          <MusicApp />
         </main>
       </div>
     );
