@@ -193,7 +193,12 @@ Deno.serve(async (req) => {
         }
         
         // Приоритетный порядок извлечения лирики
-        if (firstItem.text && firstItem.text.length > 50 && !firstItem.text.includes('Создай профессиональную лирику')) {
+        // Сначала проверяем поля для сгенерированного контента (lyrics generation)
+        if (data.data && data.data.length > 0 && data.data[0].result) {
+          // Обрабатываем ответ от /api/v1/style/generate
+          lyricsContent = data.data[0].result;
+          console.log('✅ Extracted lyrics from style/generate result field');
+        } else if (firstItem.text && firstItem.text.length > 50 && !firstItem.text.includes('Создай профессиональную лирику')) {
           lyricsContent = firstItem.text;
           console.log('✅ Extracted lyrics from "text" field');
         } else if (firstItem.lyrics && firstItem.lyrics.length > 50) {

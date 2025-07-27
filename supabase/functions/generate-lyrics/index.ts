@@ -59,26 +59,39 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate lyrics using Suno API - use /api/v1/generate with specific lyrics parameters
+    // Generate lyrics using Suno API - use /api/v1/lyrics/generate for pure lyrics
     const callbackUrl = `${supabaseUrl}/functions/v1/suno-callback`;
     
-    // Создаем запрос ТОЛЬКО для лирики (без аудио)
+    // Создаем структурированный промпт для генерации лирики
+    const structuredPrompt = `Создай профессиональную лирику для ${lyricsRequest.style || 'pop'} песни на тему: "${lyricsRequest.prompt}". 
+      
+Требования:
+- Структура: [Verse], [Chorus], [Verse], [Chorus], [Bridge], [Chorus], [Outro]
+- Язык: ${lyricsRequest.language || 'русский'}
+- Стиль: ${lyricsRequest.style || 'pop'}
+- Настроение соответствует описанию: ${lyricsRequest.prompt}
+- Добавь теги в формате Suno AI в начале
+- Рифмы должны быть естественными и красивыми
+- Текст должен быть эмоциональным и запоминающимся
+- Используй современную поэтику
+
+Пример структуры с тегами:
+[Intro]
+[Verse]
+текст куплета...
+[Chorus]  
+текст припева...
+
+Создай полноценный текст песни с правильной структурой и тегами.`;
+
     const requestBody = {
-      prompt: lyricsRequest.prompt,
-      style: lyricsRequest.style || 'pop',
-      title: `Lyrics: ${lyricsRequest.prompt.substring(0, 50)}...`,
-      model: 'V4_5', // Добавляем обязательный параметр модели
-      customMode: true,
-      instrumental: false,
-      make_instrumental: false,
-      wait_audio: false, // Не ждать генерацию аудио
-      lyrics_only: true, // Только лирика
+      content: structuredPrompt,
       callBackUrl: callbackUrl
     };
 
     console.log('Sending LYRICS-ONLY request to Suno API:', JSON.stringify({...requestBody, callBackUrl: '[REDACTED]'}, null, 2));
 
-    const lyricsResponse = await fetch('https://api.sunoapi.org/api/v1/generate', {
+    const lyricsResponse = await fetch('https://api.sunoapi.org/api/v1/style/generate', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
@@ -130,9 +143,8 @@ Deno.serve(async (req) => {
           provider_lyrics_id: lyricsData.data.taskId,
           generation_params: {
             ...lyricsRequest,
-            lyrics_only: true,
-            wait_audio: false,
-            endpoint_used: '/api/v1/generate'
+            structured_prompt: structuredPrompt,
+            endpoint_used: '/api/v1/style/generate'
           }
         })
         .select()

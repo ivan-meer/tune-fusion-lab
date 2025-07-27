@@ -29,6 +29,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import Header from '@/components/layout/Header';
 import MusicStudio from '@/components/music/MusicStudio';
 import MusicAidPro from '@/components/music/MusicAidPro';
+import CompleteWorkflow from '@/components/music/CompleteWorkflow';
 import { 
   ParallaxScroll, 
   CountUp, 

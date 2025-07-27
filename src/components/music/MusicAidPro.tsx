@@ -5,12 +5,21 @@ import { Badge } from '@/components/ui/badge';
 import MusicStudio from './MusicStudio';
 import LyricsStudio from './LyricsStudio';
 import TrackLibrary from './TrackLibrary';
+import CompleteWorkflow from './CompleteWorkflow';
 import { Music, PenTool, Library, Mic, Video, Settings, Sparkles } from 'lucide-react';
 
 export default function MusicAidPro() {
   const [activeTab, setActiveTab] = useState('music');
 
   const modules = [
+    {
+      id: 'workflow',
+      name: 'Создать трек',
+      description: 'Полный цикл: идея → текст → музыка',
+      icon: Sparkles,
+      component: CompleteWorkflow,
+      badge: 'Новое'
+    },
     {
       id: 'music',
       name: 'Генерация музыки',
@@ -67,7 +76,7 @@ export default function MusicAidPro() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           {modules.map((module) => {
             const IconComponent = module.icon;
             return (
