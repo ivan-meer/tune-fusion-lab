@@ -177,32 +177,35 @@ Deno.serve(async (req) => {
       // Handle both 'complete' and 'text' callbackType for lyrics
       if ((status === 'complete' || status === 'text') && data.data && data.data.length > 0) {
         console.log('Processing complete lyrics callback');
+        console.log('Full data structure received:', JSON.stringify(data, null, 2));
         
-        // For lyrics generation, extract the actual lyrics text
+        // Check if this is actually music generation (has audio_url) instead of lyrics-only
         const firstItem = data.data[0];
+        console.log('First item keys:', Object.keys(firstItem));
+        console.log('Has audio_url:', !!firstItem.audio_url);
+        
         let lyricsContent = '';
         
-        // Try to extract lyrics from various possible fields in priority order
-        if (firstItem.text) {
-          lyricsContent = firstItem.text;
-        } else if (firstItem.lyrics) {
-          lyricsContent = firstItem.lyrics;
-        } else if (firstItem.lyric_text) {
-          lyricsContent = firstItem.lyric_text;
-        } else if (firstItem.content) {
-          lyricsContent = firstItem.content;
-        } else if (firstItem.generated_text) {
-          lyricsContent = firstItem.generated_text;
-        } else if (firstItem.prompt && (firstItem.prompt.includes('[Verse]') || firstItem.prompt.includes('[Chorus]'))) {
-          // If prompt contains lyric structure, use it
-          lyricsContent = firstItem.prompt;
+        // If this has audio_url, it means music was generated instead of just lyrics
+        if (firstItem.audio_url) {
+          console.error('ERROR: Music was generated instead of lyrics-only! API endpoint may be wrong.');
+          lyricsContent = 'Ошибка: была сгенерирована музыка вместо текста лирики. Проверьте настройки API.';
         } else {
-          // Check if this is actually a music generation by looking for audio_url
-          if (firstItem.audio_url) {
-            console.log('Detected music generation instead of lyrics - extracting prompt as lyrics');
-            lyricsContent = firstItem.prompt || 'Музыка сгенерирована, но текст лирики не получен';
+          // Try to extract lyrics from various possible fields in priority order
+          if (firstItem.text && !firstItem.text.includes('Создай профессиональную лирику')) {
+            lyricsContent = firstItem.text;
+          } else if (firstItem.lyrics) {
+            lyricsContent = firstItem.lyrics;
+          } else if (firstItem.lyric_text) {
+            lyricsContent = firstItem.lyric_text;
+          } else if (firstItem.content && !firstItem.content.includes('Создай профессиональную лирику')) {
+            lyricsContent = firstItem.content;
+          } else if (firstItem.generated_text) {
+            lyricsContent = firstItem.generated_text;
           } else {
-            lyricsContent = firstItem.prompt || 'Лирика сгенерирована, но текст не получен в ожидаемом формате.';
+            console.error('No valid lyrics content found in any expected field');
+            console.log('Available fields:', Object.keys(firstItem));
+            lyricsContent = 'Лирика сгенерирована, но текст не найден в ожидаемых полях API ответа.';
           }
         }
         
