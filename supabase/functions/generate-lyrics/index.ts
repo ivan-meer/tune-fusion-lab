@@ -55,19 +55,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate lyrics using Suno API - use dedicated lyrics endpoint
+    // Generate lyrics using Suno API - use /api/v1/generate with specific lyrics parameters
     const callbackUrl = `${supabaseUrl}/functions/v1/suno-callback`;
     
     const requestBody = {
       prompt: lyricsRequest.prompt,
+      model: 'V4_5',
+      customMode: true,
+      title: `Generated Lyrics for ${lyricsRequest.style || 'pop'}`,
       style: lyricsRequest.style || 'pop',
+      instrumental: false,
+      make_instrumental: false,
+      wait_audio: false, // Don't wait for audio generation
       language: lyricsRequest.language || 'russian',
       callBackUrl: callbackUrl
     };
 
     console.log('Sending lyrics request to Suno API:', requestBody);
 
-    const lyricsResponse = await fetch('https://api.sunoapi.org/api/v1/lyrics/generate', {
+    const lyricsResponse = await fetch('https://api.sunoapi.org/api/v1/generate', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
