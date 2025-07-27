@@ -355,13 +355,14 @@ async function generateWithSuno(
     .update({ status: 'processing', progress: 40 })
     .eq('id', jobId);
 
-  // Build simplified request payload (matching successful 14:54 request)
+  // Build official Suno API request payload
   const generateRequest: any = {
     prompt: prompt,
+    style: style,
     title: prompt.slice(0, 80),
+    customMode: true,
+    instrumental: instrumental,
     model: model,
-    customMode: true, // ОБЯЗАТЕЛЬНЫЙ ПАРАМЕТР для Suno API
-    instrumental: instrumental, // ПРАВИЛЬНЫЙ ПАРАМЕТР - НЕ make_instrumental!
     callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
   };
 

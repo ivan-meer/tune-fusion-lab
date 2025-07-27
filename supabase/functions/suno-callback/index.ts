@@ -6,17 +6,27 @@ const corsHeaders = {
 }
 
 interface CallbackData {
-  taskId: string;
-  status: 'completed' | 'failed' | 'processing';
-  result?: {
-    audioUrl?: string;
-    videoUrl?: string;
-    lyrics?: string;
-    duration?: number;
-    title?: string;
-    image_url?: string;
+  code: number;
+  msg: string;
+  data: {
+    callbackType: 'complete' | 'error' | 'processing';
+    task_id: string;
+    data?: Array<{
+      id: string;
+      audio_url: string;
+      source_audio_url: string;
+      stream_audio_url: string;
+      source_stream_audio_url: string;
+      image_url: string;
+      source_image_url: string;
+      prompt: string;
+      model_name: string;
+      title: string;
+      tags: string;
+      createTime: string;
+      duration: number;
+    }> | null;
   };
-  error?: string;
 }
 
 Deno.serve(async (req) => {
@@ -36,7 +46,11 @@ Deno.serve(async (req) => {
     const callbackData: CallbackData = await req.json();
     console.log('Callback data:', callbackData);
 
-    const { taskId, status, result, error } = callbackData;
+    const { code, msg, data } = callbackData;
+    const taskId = data.task_id;
+    const status = data.callbackType;
+    const result = data.data?.[0];
+    const error = code !== 200 ? msg : undefined;
 
     if (!taskId) {
       console.error('No taskId in callback');
@@ -87,7 +101,7 @@ Deno.serve(async (req) => {
 
     const job = jobs[0];
 
-    if (status === 'completed' && result) {
+    if (status === 'complete' && result) {
       console.log('Processing completed callback');
       
       // Create track record
@@ -96,12 +110,13 @@ Deno.serve(async (req) => {
         .insert({
           user_id: job.user_id,
           title: result.title || 'Generated Track',
-          file_url: result.audioUrl,
+          file_url: result.audio_url,
           artwork_url: result.image_url,
           duration: result.duration || 0,
           provider: 'suno',
-          provider_track_id: taskId,
-          lyrics: result.lyrics,
+          provider_track_id: result.id,
+          lyrics: result.prompt,
+          genre: result.tags,
           generation_params: job.request_params,
           is_public: false,
           is_commercial: false
@@ -150,7 +165,7 @@ Deno.serve(async (req) => {
 
       console.log('Callback processed successfully for completed job');
 
-    } else if (status === 'failed') {
+    } else if (status === 'error') {
       console.log('Processing failed callback');
       
       // Update job as failed

@@ -16,7 +16,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import GenerationProgress from './GenerationProgress';
 import { useToast } from '@/hooks/use-toast';
-import { Wand2, Sparkles, Music, Play, Download, Share, Shuffle, Zap } from 'lucide-react';
+import { Wand2, Sparkles, Music, Play, Download, Share, Shuffle, Zap, ArrowRight } from 'lucide-react';
+import AdvancedMusicStudio from './AdvancedMusicStudio';
 
 interface AudioPlayerProps {
   src: string;
@@ -50,13 +51,15 @@ function AudioPlayer({ src, title }: AudioPlayerProps) {
 
 export default function MusicStudio() {
   const [prompt, setPrompt] = useState('');
-  const [provider, setProvider] = useState<'mureka' | 'suno' | 'test'>('test');
-  const [model, setModel] = useState<ModelType>('test');
+  const [provider, setProvider] = useState<'mureka' | 'suno' | 'test'>('suno');
+  const [model, setModel] = useState<ModelType>('V4_5');
   const [style, setStyle] = useState('pop');
   const [duration, setDuration] = useState([60]);
   const [instrumental, setInstrumental] = useState(false);
   const [lyrics, setLyrics] = useState('');
   const [showAdmin, setShowAdmin] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   
   const { user } = useAuth();
   const { generateMusic, resetGeneration, isGenerating, currentJob } = useMusicGeneration();
@@ -87,25 +90,36 @@ export default function MusicStudio() {
     setPrompt(randomPrompt);
   };
 
-  const enhancePrompt = () => {
+  const enhancePrompt = async () => {
     if (!prompt.trim()) {
       generateRandomPrompt();
       return;
     }
     
+    setIsEnhancing(true);
+    
+    // Add AI-powered enhancement simulation
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
     const enhancements = [
-      'с богатой аранжировкой',
-      'с профессиональным звучанием',
-      'в студийном качестве',
-      'с эмоциональной подачей',
-      'с современным продакшеном',
-      'с динамичными переходами',
-      'с запоминающимся припевом',
-      'с глубоким басом'
+      'с богатой аранжировкой и многослойным звучанием',
+      'с профессиональным студийным качеством и мастерингом',
+      'с эмоциональной подачей и динамичными переходами',
+      'с современным продакшеном и пространственными эффектами',
+      'с запоминающимся мелодическим крюком и гармоничными аккордами',
+      'с глубоким басом и четкой ритм-секцией',
+      'с атмосферными подложками и реверберацией',
+      'с кинематографичным звучанием и оркестровыми элементами'
     ];
     
     const enhancement = enhancements[Math.floor(Math.random() * enhancements.length)];
     setPrompt(prev => `${prev}, ${enhancement}`);
+    setIsEnhancing(false);
+    
+    toast({
+      title: "Промпт улучшен!",
+      description: "Добавлены профессиональные детали для лучшего результата"
+    });
   };
 
   const handleGenerate = async () => {
@@ -158,6 +172,10 @@ export default function MusicStudio() {
     }
   };
 
+  if (showAdvanced) {
+    return <AdvancedMusicStudio />;
+  }
+
   return (
     <div className="space-y-6">
       {showAdmin && <AdminPanel />}
@@ -169,13 +187,23 @@ export default function MusicStudio() {
               <Wand2 className="h-5 w-5" />
               Генерация музыки с ИИ
             </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowAdmin(!showAdmin)}
-            >
-              {showAdmin ? 'Скрыть логи' : 'Показать логи'}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAdvanced(true)}
+              >
+                <ArrowRight className="h-4 w-4 mr-1" />
+                Продвинутый режим
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAdmin(!showAdmin)}
+              >
+                {showAdmin ? 'Скрыть логи' : 'Показать логи'}
+              </Button>
+            </div>
           </div>
           <CardDescription>
             Создайте уникальную музыку, описав то, что хотите услышать
@@ -203,10 +231,11 @@ export default function MusicStudio() {
                       variant="outline"
                       size="sm"
                       onClick={enhancePrompt}
+                      disabled={isEnhancing}
                       className="text-xs"
                     >
-                      <Zap className="h-3 w-3 mr-1" />
-                      Улучшить
+                      <Zap className={`h-3 w-3 mr-1 ${isEnhancing ? 'animate-pulse' : ''}`} />
+                      {isEnhancing ? 'Обработка...' : 'Улучшить'}
                     </Button>
                   </div>
                 </div>
