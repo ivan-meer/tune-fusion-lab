@@ -55,8 +55,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate lyrics using Suno API - correct endpoint
-    const lyricsResponse = await fetch('https://api.sunoapi.org/api/v1/lyrics/generate', {
+    // Generate lyrics using Suno API - using correct endpoint
+    const lyricsResponse = await fetch('https://api.sunoapi.org/api/v1/generate', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
@@ -64,9 +64,9 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         prompt: lyricsRequest.prompt,
+        type: 'lyrics',
         style: lyricsRequest.style || 'pop',
-        language: lyricsRequest.language || 'russian',
-        structure: lyricsRequest.structure || 'verse-chorus'
+        language: lyricsRequest.language || 'russian'
       })
     });
 
