@@ -1,11 +1,22 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { CheckCircle2, XCircle, Clock, Music, RefreshCw, Play } from 'lucide-react';
+import { 
+  Music, 
+  CheckCircle, 
+  XCircle, 
+  Clock, 
+  RefreshCw,
+  Download,
+  Play,
+  Sparkles
+} from 'lucide-react';
 import { GenerationJob } from '@/hooks/useMusicGeneration';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
+import GenerationSteps, { GenerationStep } from './GenerationSteps';
+import { cn } from '@/lib/utils';
 
 interface GenerationProgressProps {
   job: GenerationJob;
@@ -29,7 +40,7 @@ const statusConfig = {
     label: 'Обработка'
   },
   completed: {
-    icon: CheckCircle2,
+    icon: CheckCircle,
     color: 'text-green-600',
     bgColor: 'bg-green-50',
     borderColor: 'border-green-200',

@@ -98,28 +98,46 @@ export default function MusicStudio() {
     
     setIsEnhancing(true);
     
-    // Add AI-powered enhancement simulation
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      // Try to use the new style-enhance edge function
+      const { data, error } = await supabase.functions.invoke('style-enhance', {
+        body: { content: prompt }
+      });
+
+      if (data?.success && data.enhancedStyle) {
+        setPrompt(data.enhancedStyle);
+        toast({
+          title: "Промпт улучшен с помощью ИИ!",
+          description: `Использован метод: ${data.method || 'suno_api'}`
+        });
+      } else {
+        throw new Error(data?.error || 'Enhancement failed');
+      }
+    } catch (error) {
+      console.error('Enhancement error:', error);
+      
+      // Fallback to local enhancement
+      const enhancements = [
+        'с богатой аранжировкой и многослойным звучанием',
+        'с профессиональным студийным качеством и мастерингом',
+        'с эмоциональной подачей и динамичными переходами',
+        'с современным продакшеном и пространственными эффектами',
+        'с запоминающимся мелодическим крюком и гармоничными аккордами',
+        'с глубоким басом и четкой ритм-секцией',
+        'с атмосферными подложками и реверберацией',
+        'с кинематографичным звучанием и оркестровыми элементами'
+      ];
+      
+      const enhancement = enhancements[Math.floor(Math.random() * enhancements.length)];
+      setPrompt(prev => `${prev}, ${enhancement}`);
+      
+      toast({
+        title: "Промпт улучшен локально",
+        description: "Добавлены профессиональные детали"
+      });
+    }
     
-    const enhancements = [
-      'с богатой аранжировкой и многослойным звучанием',
-      'с профессиональным студийным качеством и мастерингом',
-      'с эмоциональной подачей и динамичными переходами',
-      'с современным продакшеном и пространственными эффектами',
-      'с запоминающимся мелодическим крюком и гармоничными аккордами',
-      'с глубоким басом и четкой ритм-секцией',
-      'с атмосферными подложками и реверберацией',
-      'с кинематографичным звучанием и оркестровыми элементами'
-    ];
-    
-    const enhancement = enhancements[Math.floor(Math.random() * enhancements.length)];
-    setPrompt(prev => `${prev}, ${enhancement}`);
     setIsEnhancing(false);
-    
-    toast({
-      title: "Промпт улучшен!",
-      description: "Добавлены профессиональные детали для лучшего результата"
-    });
   };
 
   const handleGenerate = async () => {

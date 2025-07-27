@@ -292,9 +292,8 @@ function ListViewLayout({
   playerActions,
   className 
 }: TrackCardProps & { playerActions: any }) {
-  const [playerState] = useAudioPlayer();
-  const isCurrentTrack = playerState.currentTrack?.id === track.id;
-  const isPlaying = isCurrentTrack && playerState.isPlaying;
+  const isCurrentTrack = playerActions.currentTrack?.id === track.id;
+  const isPlaying = isCurrentTrack && playerActions.isPlaying;
 
   /**
    * Handle track playback
@@ -383,9 +382,8 @@ function GridViewLayout({
   playerActions,
   className 
 }: TrackCardProps & { playerActions: any }) {
-  const [playerState] = useAudioPlayer();
-  const isCurrentTrack = playerState.currentTrack?.id === track.id;
-  const isPlaying = isCurrentTrack && playerState.isPlaying;
+  const isCurrentTrack = playerActions.currentTrack?.id === track.id;
+  const isPlaying = isCurrentTrack && playerActions.isPlaying;
 
   /**
    * Handle track playback
@@ -492,7 +490,11 @@ export default function TrackCard({
     onDelete,
     onDownload,
     onShare,
-    playerActions,
+    playerActions: {
+      ...playerActions,
+      currentTrack: playerState.currentTrack,
+      isPlaying: playerState.isPlaying
+    },
     className
   };
 
