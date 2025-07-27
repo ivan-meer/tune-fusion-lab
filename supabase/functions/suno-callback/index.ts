@@ -165,40 +165,64 @@ Deno.serve(async (req) => {
 
     // Handle lyrics callback
     if (lyricsRecord) {
-      console.log('Processing lyrics callback');
+      console.log('Processing lyrics callback for record:', lyricsRecord.id);
+      console.log('Callback status:', status, 'Data:', data);
       
-      if (status === 'complete' && lyricsResult && lyricsResult.status === 'complete') {
+      if (status === 'complete' && data.data) {
+        console.log('Updating lyrics with generated content');
+        // Extract lyrics content from the first item in data array
+        const lyricsContent = data.data[0]?.prompt || 'Лирика сгенерирована';
+        
         const { error: updateError } = await supabase
           .from('lyrics')
           .update({
-            content: lyricsResult.text || 'Текст не получен',
-            title: lyricsResult.title || lyricsRecord.title,
+            content: lyricsContent,
             updated_at: new Date().toISOString()
           })
           .eq('id', lyricsRecord.id);
-
+        
         if (updateError) {
           console.error('Error updating lyrics:', updateError);
-        } else {
-          console.log('Lyrics updated successfully');
+          return new Response(
+            JSON.stringify({ error: 'Failed to update lyrics' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
-      } else if (status === 'error' || (lyricsResult && lyricsResult.errorMessage)) {
+        
+        console.log('Lyrics updated successfully:', lyricsRecord.id);
+      } else if (status === 'error') {
+        console.log('Lyrics generation failed, updating with error');
         const { error: updateError } = await supabase
           .from('lyrics')
           .update({
-            content: `Ошибка генерации: ${lyricsResult?.errorMessage || error || 'Неизвестная ошибка'}`,
+            content: 'Ошибка генерации лирики. Попробуйте снова.',
             updated_at: new Date().toISOString()
           })
           .eq('id', lyricsRecord.id);
-
+        
         if (updateError) {
           console.error('Error updating lyrics with error:', updateError);
+        }
+      } else if (status === 'text' && data.data) {
+        console.log('Text generation callback - processing lyrics');
+        // Handle text generation callback specifically for lyrics
+        const lyricsContent = data.data[0]?.prompt || 'Лирика сгенерирована';
+        
+        const { error: updateError } = await supabase
+          .from('lyrics')
+          .update({
+            content: lyricsContent,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', lyricsRecord.id);
+        
+        if (updateError) {
+          console.error('Error updating lyrics from text callback:', updateError);
         } else {
-          console.log('Lyrics updated with error message');
+          console.log('Lyrics updated from text callback successfully');
         }
       } else {
-        // Handle case where callback doesn't have lyrics data yet
-        console.log('Lyrics callback received but no lyrics data yet, status:', status);
+        console.log('Lyrics callback received, status:', status, 'waiting for completion');
       }
 
       return new Response(JSON.stringify({ success: true }), {

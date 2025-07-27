@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,6 +16,7 @@ interface GeneratedLyrics {
   title: string;
   style: string;
   language: string;
+  created_at: string;
 }
 
 export default function LyricsStudio() {
@@ -24,47 +25,76 @@ export default function LyricsStudio() {
   const [language, setLanguage] = useState('russian');
   const [structure, setStructure] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedLyrics, setGeneratedLyrics] = useState<GeneratedLyrics | null>(null);
+  const [generatedLyrics, setGeneratedLyrics] = useState<GeneratedLyrics[]>([]);
   
   const { user } = useAuth();
   const { toast } = useToast();
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) return;
-    if (!user) return;
+    if (!prompt.trim()) {
+      toast({
+        title: "Ошибка",
+        description: "Пожалуйста, введите описание лирики",
+        variant: "destructive"
+      });
+      return;
+    }
 
+    setIsGenerating(true);
     try {
-      setIsGenerating(true);
-      
       const { data, error } = await supabase.functions.invoke('generate-lyrics', {
         body: {
-          prompt,
-          style,
-          language,
-          structure
-        }
+          prompt: prompt.trim(),
+          style: style || undefined,
+          language: language || undefined,
+          structure: structure || undefined,
+        },
       });
 
-      if (error) {
-        throw new Error(error.message || 'Failed to generate lyrics');
-      }
+      if (error) throw error;
 
-      if (!data?.success) {
-        throw new Error(data?.error || 'Lyrics generation failed');
-      }
-
-      setGeneratedLyrics(data.lyrics);
+      toast({
+        title: "Генерация запущена",
+        description: "Генерация лирики запущена! Результат появится через несколько минут."
+      });
       
-      toast({
-        title: "Лирика создана!",
-        description: `Создан текст в стиле ${style}`
-      });
-
+      console.log('Lyrics generation started:', data);
+      
+      // Start polling for updates every 10 seconds
+      const pollInterval = setInterval(async () => {
+        try {
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (!currentUser) return;
+          
+          const { data: lyricsData } = await supabase
+            .from('lyrics')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+          
+          if (lyricsData && lyricsData.content !== 'Генерация текста в процессе... Ожидайте результат.') {
+            await loadUserLyrics();
+            clearInterval(pollInterval);
+            toast({
+              title: "Готово!",
+              description: "Лирика успешно сгенерирована!"
+            });
+          }
+        } catch (error) {
+          console.error('Error polling lyrics:', error);
+        }
+      }, 10000);
+      
+      // Stop polling after 5 minutes
+      setTimeout(() => clearInterval(pollInterval), 300000);
+      
     } catch (error) {
-      console.error('Lyrics generation error:', error);
+      console.error('Error generating lyrics:', error);
       toast({
-        title: "Ошибка генерации",
-        description: error instanceof Error ? error.message : 'Неизвестная ошибка',
+        title: "Ошибка",
+        description: "Ошибка при генерации лирики",
         variant: "destructive"
       });
     } finally {
@@ -72,24 +102,63 @@ export default function LyricsStudio() {
     }
   };
 
-  const copyToClipboard = () => {
-    if (generatedLyrics) {
-      navigator.clipboard.writeText(generatedLyrics.content);
-      toast({
-        title: "Скопировано!",
-        description: "Текст скопирован в буфер обмена"
-      });
+  const loadUserLyrics = async () => {
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) return;
+
+      const { data, error } = await supabase
+        .from('lyrics')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setGeneratedLyrics(data || []);
+    } catch (error) {
+      console.error('Error loading lyrics:', error);
     }
   };
 
-  const createMusicFromLyrics = () => {
-    if (generatedLyrics) {
-      // Интеграция с MusicStudio - передать лирику
-      toast({
-        title: "Переход к созданию музыки",
-        description: "Функция будет добавлена в следующей версии"
-      });
-    }
+  useEffect(() => {
+    loadUserLyrics();
+
+    // Set up real-time subscription for lyrics updates
+    const channel = supabase
+      .channel('lyrics-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'lyrics'
+        },
+        (payload) => {
+          console.log('Lyrics updated:', payload);
+          loadUserLyrics(); // Reload lyrics when updated
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const copyToClipboard = (lyrics: GeneratedLyrics) => {
+    navigator.clipboard.writeText(lyrics.content);
+    toast({
+      title: "Скопировано!",
+      description: "Текст скопирован в буфер обмена"
+    });
+  };
+
+  const createMusicFromLyrics = (lyrics: GeneratedLyrics) => {
+    toast({
+      title: "Переход к созданию музыки",
+      description: "Функция будет добавлена в следующей версии"
+    });
   };
 
   return (
@@ -132,6 +201,7 @@ export default function LyricsStudio() {
                   <SelectItem value="jazz">Джаз</SelectItem>
                   <SelectItem value="blues">Блюз</SelectItem>
                   <SelectItem value="country">Кантри</SelectItem>
+                  <SelectItem value="ambient">Эмбиент</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -153,16 +223,16 @@ export default function LyricsStudio() {
             </div>
 
             <div className="space-y-2">
-              <Label>Структура (опционально)</Label>
+              <Label>Структура</Label>
               <Select value={structure} onValueChange={setStructure}>
                 <SelectTrigger>
                   <SelectValue placeholder="Любая" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="any">Любая</SelectItem>
-                  <SelectItem value="verse-chorus-verse-chorus-bridge-chorus">Классическая</SelectItem>
-                  <SelectItem value="verse-chorus-verse-chorus">Простая</SelectItem>
-                  <SelectItem value="intro-verse-chorus-verse-chorus-outro">Полная</SelectItem>
+                  <SelectItem value="">Любая</SelectItem>
+                  <SelectItem value="verse-chorus">Куплет-Припев</SelectItem>
+                  <SelectItem value="verse-chorus-bridge">Полная структура</SelectItem>
+                  <SelectItem value="simple">Простая</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -180,47 +250,52 @@ export default function LyricsStudio() {
         </CardContent>
       </Card>
 
-      {generatedLyrics && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>{generatedLyrics.title}</CardTitle>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">{generatedLyrics.style}</Badge>
-                <Badge variant="outline">{generatedLyrics.language}</Badge>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 bg-muted rounded-lg">
-              <pre className="whitespace-pre-wrap font-mono text-sm">
-                {generatedLyrics.content}
-              </pre>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Button onClick={copyToClipboard} variant="outline" size="sm">
-                <Copy className="h-4 w-4 mr-1" />
-                Копировать
-              </Button>
-              
-              <Button onClick={createMusicFromLyrics} variant="outline" size="sm">
-                <Music className="h-4 w-4 mr-1" />
-                Создать музыку
-              </Button>
-              
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-1" />
-                Скачать
-              </Button>
-              
-              <Button variant="outline" size="sm">
-                <Share className="h-4 w-4 mr-1" />
-                Поделиться
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+      {generatedLyrics.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Ваши тексты</h3>
+          {generatedLyrics.map((lyrics) => (
+            <Card key={lyrics.id}>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">{lyrics.title}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">{lyrics.style}</Badge>
+                    <Badge variant="outline">{lyrics.language}</Badge>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-4 bg-muted rounded-lg max-h-60 overflow-y-auto">
+                  <pre className="whitespace-pre-wrap font-mono text-sm">
+                    {lyrics.content}
+                  </pre>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Button onClick={() => copyToClipboard(lyrics)} variant="outline" size="sm">
+                    <Copy className="h-4 w-4 mr-1" />
+                    Копировать
+                  </Button>
+                  
+                  <Button onClick={() => createMusicFromLyrics(lyrics)} variant="outline" size="sm">
+                    <Music className="h-4 w-4 mr-1" />
+                    Создать музыку
+                  </Button>
+                  
+                  <Button variant="outline" size="sm">
+                    <Download className="h-4 w-4 mr-1" />
+                    Скачать
+                  </Button>
+                  
+                  <Button variant="outline" size="sm">
+                    <Share className="h-4 w-4 mr-1" />
+                    Поделиться
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
     </div>
   );
