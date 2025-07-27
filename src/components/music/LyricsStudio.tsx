@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { PenTool, Copy, Download, Share, Music } from 'lucide-react';
+import { PenTool, Copy, Download, Share, Music, Brain } from 'lucide-react';
 
 interface GeneratedLyrics {
   id: string;
@@ -25,6 +25,7 @@ export default function LyricsStudio() {
   const [language, setLanguage] = useState('russian');
   const [structure, setStructure] = useState('any');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingAIPrompt, setIsGeneratingAIPrompt] = useState(false);
   const [generatedLyrics, setGeneratedLyrics] = useState<GeneratedLyrics[]>([]);
   
   const { user } = useAuth();
@@ -102,6 +103,40 @@ export default function LyricsStudio() {
     }
   };
 
+  const generateAIPrompt = async () => {
+    setIsGeneratingAIPrompt(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-prompt-generator', {
+        body: { 
+          type: 'lyrics', 
+          style: style,
+          context: prompt || `${style} песня`,
+          language: language
+        }
+      });
+
+      if (data?.success && data.prompt) {
+        setPrompt(data.prompt);
+        toast({
+          title: "Промпт сгенерирован!",
+          description: "ИИ создал креативное описание для лирики"
+        });
+      } else {
+        throw new Error(data?.error || 'Prompt generation failed');
+      }
+    } catch (error) {
+      console.error('AI prompt generation error:', error);
+      toast({
+        title: "Ошибка генерации",
+        description: "Попробуйте еще раз",
+        variant: "destructive"
+      });
+    }
+    
+    setIsGeneratingAIPrompt(false);
+  };
+
   const loadUserLyrics = async () => {
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
@@ -175,7 +210,18 @@ export default function LyricsStudio() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="lyrics-prompt">Описание лирики</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="lyrics-prompt">Описание лирики</Label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={generateAIPrompt}
+                disabled={isGeneratingAIPrompt}
+              >
+                <Brain className={`h-4 w-4 mr-1 ${isGeneratingAIPrompt ? 'animate-pulse' : ''}`} />
+                {isGeneratingAIPrompt ? 'Генерирую...' : 'ИИ Промпт'}
+              </Button>
+            </div>
             <Textarea
               id="lyrics-prompt"
               placeholder="Например: Лирика о любви к родине, патриотическая, торжественная"

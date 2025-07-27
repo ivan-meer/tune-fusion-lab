@@ -15,7 +15,8 @@ import {
   Volume2, 
   FileAudio,
   Loader2,
-  Music2
+  Music2,
+  Brain
 } from 'lucide-react'
 
 export const PipelineFragments: React.FC = () => {
@@ -204,6 +205,70 @@ export const PipelineFragments: React.FC = () => {
     }
   }
 
+  const generateAIStylePrompt = async () => {
+    setIsLoading('ai-style')
+    
+    try {
+      const response = await supabase.functions.invoke('ai-prompt-generator', {
+        body: { 
+          type: 'style', 
+          context: styleContent || 'современная музыка'
+        }
+      })
+
+      if (response.data?.success && response.data.prompt) {
+        setStyleContent(response.data.prompt)
+        toast({
+          title: "Промпт сгенерирован!",
+          description: "ИИ создал улучшенное описание стиля"
+        })
+      } else {
+        throw new Error(response.data?.error || 'AI generation failed')
+      }
+    } catch (error) {
+      console.error('AI style prompt error:', error)
+      toast({
+        title: "Ошибка генерации",
+        description: "Попробуйте еще раз",
+        variant: "destructive"
+      })
+    } finally {
+      setIsLoading(null)
+    }
+  }
+
+  const generateAIExtendPrompt = async () => {
+    setIsLoading('ai-extend')
+    
+    try {
+      const response = await supabase.functions.invoke('ai-prompt-generator', {
+        body: { 
+          type: 'extend', 
+          context: extendPrompt || 'продолжение музыкального трека'
+        }
+      })
+
+      if (response.data?.success && response.data.prompt) {
+        setExtendPrompt(response.data.prompt)
+        toast({
+          title: "Промпт сгенерирован!",
+          description: "ИИ создал описание для расширения трека"
+        })
+      } else {
+        throw new Error(response.data?.error || 'AI generation failed')
+      }
+    } catch (error) {
+      console.error('AI extend prompt error:', error)
+      toast({
+        title: "Ошибка генерации",
+        description: "Попробуйте еще раз",
+        variant: "destructive"
+      })
+    } finally {
+      setIsLoading(null)
+    }
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Улучшение стиля */}
@@ -219,7 +284,18 @@ export const PipelineFragments: React.FC = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="style-content">Описание стиля</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="style-content">Описание стиля</Label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={generateAIStylePrompt}
+                disabled={isLoading === 'ai-style'}
+              >
+                <Brain className={`h-4 w-4 mr-1 ${isLoading === 'ai-style' ? 'animate-pulse' : ''}`} />
+                {isLoading === 'ai-style' ? 'Генерирую...' : 'ИИ Промпт'}
+              </Button>
+            </div>
             <Textarea
               id="style-content"
               placeholder="Pop, энергичная музыка"
@@ -285,7 +361,18 @@ export const PipelineFragments: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="extend-prompt">Промпт для расширения</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="extend-prompt">Промпт для расширения</Label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={generateAIExtendPrompt}
+                disabled={isLoading === 'ai-extend'}
+              >
+                <Brain className={`h-4 w-4 mr-1 ${isLoading === 'ai-extend' ? 'animate-pulse' : ''}`} />
+                {isLoading === 'ai-extend' ? 'Генерирую...' : 'ИИ Промпт'}
+              </Button>
+            </div>
             <Input
               id="extend-prompt"
               placeholder="Добавить финальный припев и завершение"

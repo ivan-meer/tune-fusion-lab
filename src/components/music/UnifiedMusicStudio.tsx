@@ -53,6 +53,8 @@ export default function UnifiedMusicStudio() {
   // UI state
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isGeneratingLyrics, setIsGeneratingLyrics] = useState(false);
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
+  const [isGeneratingAILyrics, setIsGeneratingAILyrics] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const { user } = useAuth();
@@ -95,6 +97,43 @@ export default function UnifiedMusicStudio() {
     { value: 'vocals', label: 'Вокал', icon: Mic },
     { value: 'strings', label: 'Струнные', icon: Music }
   ];
+
+  // Generate AI prompt
+  const generateAIPrompt = async () => {
+    setIsGeneratingPrompt(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-prompt-generator', {
+        body: { 
+          type: 'music', 
+          style: style,
+          context: prompt || `${style} музыка`
+        }
+      });
+
+      if (data?.success && data.prompt) {
+        setPrompt(data.prompt);
+        toast({
+          title: "Промпт сгенерирован!",
+          description: "ИИ создал креативное описание для вашего трека"
+        });
+      } else {
+        throw new Error(data?.error || 'Prompt generation failed');
+      }
+    } catch (error) {
+      console.error('AI prompt generation error:', error);
+      
+      // Fallback to random suggestion
+      generateRandomPrompt();
+      
+      toast({
+        title: "Промпт создан локально",
+        description: "Использован случайный вариант"
+      });
+    }
+    
+    setIsGeneratingPrompt(false);
+  };
 
   // Generate random prompt for simple mode
   const generateRandomPrompt = () => {
@@ -236,6 +275,41 @@ export default function UnifiedMusicStudio() {
     }
   };
 
+  // Generate AI lyrics prompt
+  const generateAILyrics = async () => {
+    setIsGeneratingAILyrics(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-prompt-generator', {
+        body: { 
+          type: 'lyrics', 
+          style: style,
+          context: prompt,
+          language: 'russian'
+        }
+      });
+
+      if (data?.success && data.prompt) {
+        setLyrics(data.prompt);
+        toast({
+          title: "Текст сгенерирован!",
+          description: "ИИ создал описание для генерации лирики"
+        });
+      } else {
+        throw new Error(data?.error || 'Lyrics prompt generation failed');
+      }
+    } catch (error) {
+      console.error('AI lyrics generation error:', error);
+      toast({
+        title: "Ошибка генерации",
+        description: "Попробуйте еще раз",
+        variant: "destructive"
+      });
+    }
+    
+    setIsGeneratingAILyrics(false);
+  };
+
   // Handle generation
   const handleGenerate = async () => {
     if (!prompt.trim() || !user) return;
@@ -373,6 +447,15 @@ export default function UnifiedMusicStudio() {
             <div className="flex items-center justify-between">
               <Label className="text-base font-medium">Описание трека</Label>
               <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={generateAIPrompt}
+                  disabled={isGeneratingPrompt}
+                >
+                  <Brain className={`h-4 w-4 mr-1 ${isGeneratingPrompt ? 'animate-pulse' : ''}`} />
+                  {isGeneratingPrompt ? 'Генерирую...' : 'ИИ Промпт'}
+                </Button>
                 {mode === 'simple' && (
                   <Button
                     variant="outline"
