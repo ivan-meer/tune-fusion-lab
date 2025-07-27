@@ -10,7 +10,9 @@ interface CallbackData {
   msg: string;
   data: {
     callbackType: 'complete' | 'error' | 'processing';
-    task_id: string;
+    task_id?: string;
+    taskId?: string;
+    // For music generation
     data?: Array<{
       id: string;
       audio_url: string;
@@ -25,6 +27,13 @@ interface CallbackData {
       tags: string;
       createTime: string;
       duration: number;
+    }> | null;
+    // For lyrics generation
+    lyricsData?: Array<{
+      text: string;
+      title: string;
+      status: string;
+      errorMessage?: string;
     }> | null;
   };
 }
@@ -47,9 +56,10 @@ Deno.serve(async (req) => {
     console.log('Callback data:', callbackData);
 
     const { code, msg, data } = callbackData;
-    const taskId = data.task_id;
+    const taskId = data.task_id || data.taskId;
     const status = data.callbackType;
     const result = data.data?.[0];
+    const lyricsResult = data.lyricsData?.[0];
     const error = code !== 200 ? msg : undefined;
 
     if (!taskId) {
@@ -110,6 +120,74 @@ Deno.serve(async (req) => {
       console.error('Error fetching generation job:', fetchError);
       return new Response(JSON.stringify({ error: 'Database error' }), {
         status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // If no generation job found, try to find lyrics record
+    let lyricsRecord = null;
+    if (!jobs || jobs.length === 0) {
+      console.log('Searching for lyrics record with taskId:', taskId);
+      const { data: lyricsData, error: lyricsError } = await supabase
+        .from('lyrics')
+        .select('*')
+        .eq('provider_lyrics_id', taskId)
+        .single();
+      
+      if (!lyricsError && lyricsData) {
+        lyricsRecord = lyricsData;
+        console.log('Found lyrics record:', lyricsRecord.id);
+      }
+    }
+
+    if ((!jobs || jobs.length === 0) && !lyricsRecord) {
+      console.error('No generation job or lyrics record found for taskId:', taskId);
+      return new Response(JSON.stringify({ error: 'Record not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Handle lyrics callback
+    if (lyricsRecord) {
+      console.log('Processing lyrics callback');
+      
+      if (status === 'complete' && lyricsResult && lyricsResult.status === 'complete') {
+        const { error: updateError } = await supabase
+          .from('lyrics')
+          .update({
+            content: lyricsResult.text || 'Текст не получен',
+            title: lyricsResult.title || lyricsRecord.title,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', lyricsRecord.id);
+
+        if (updateError) {
+          console.error('Error updating lyrics:', updateError);
+        } else {
+          console.log('Lyrics updated successfully');
+        }
+      } else if (status === 'error' || (lyricsResult && lyricsResult.errorMessage)) {
+        const { error: updateError } = await supabase
+          .from('lyrics')
+          .update({
+            content: `Ошибка генерации: ${lyricsResult?.errorMessage || error || 'Неизвестная ошибка'}`,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', lyricsRecord.id);
+
+        if (updateError) {
+          console.error('Error updating lyrics with error:', updateError);
+        } else {
+          console.log('Lyrics updated with error message');
+        }
+      } else {
+        // Handle case where callback doesn't have lyrics data yet
+        console.log('Lyrics callback received but no lyrics data yet, status:', status);
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
