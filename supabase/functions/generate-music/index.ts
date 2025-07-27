@@ -355,13 +355,14 @@ async function generateWithSuno(
     .update({ status: 'processing', progress: 40 })
     .eq('id', jobId);
 
-  // Build official Suno API request payload according to API spec
+  // Build official Suno API request payload according to /api/v1/generate spec
   const generateRequest: any = {
     prompt: prompt,
-    model: model,
-    make_instrumental: instrumental,
-    tags: style,
+    style: style, // Correct parameter name (not tags)
     title: prompt.slice(0, 80),
+    customMode: true, // Required for custom mode
+    instrumental: instrumental, // Correct parameter name (not make_instrumental)
+    model: model,
     callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
   };
 
@@ -370,15 +371,15 @@ async function generateWithSuno(
     generateRequest.lyrics = finalLyrics;
   }
   
-  console.log('=== FIXED REQUEST PAYLOAD ===');
+  console.log('=== CORRECTED API v1/generate REQUEST ===');
   console.log(JSON.stringify(generateRequest, null, 2));
   console.log('Parameters included:', Object.keys(generateRequest));
-  console.log('make_instrumental type:', typeof generateRequest.make_instrumental, 'value:', generateRequest.make_instrumental);
-  console.log('wait_audio type:', typeof generateRequest.wait_audio, 'value:', generateRequest.wait_audio);
+  console.log('instrumental type:', typeof generateRequest.instrumental, 'value:', generateRequest.instrumental);
+  console.log('customMode type:', typeof generateRequest.customMode, 'value:', generateRequest.customMode);
   console.log('Lyrics present:', !!generateRequest.lyrics);
 
   const result = await retryApiCall(async () => {
-    const response = await fetch('https://api.sunoapi.org/api/v1/music/generate', {
+    const response = await fetch('https://api.sunoapi.org/api/v1/generate', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
@@ -491,7 +492,7 @@ async function pollSunoLyrics(taskId: string): Promise<string> {
     await new Promise(resolve => setTimeout(resolve, 3000));
     
     try {
-      const response = await fetch(`https://api.sunoapi.org/api/v1/music/details?taskId=${taskId}`, {
+      const response = await fetch(`https://api.sunoapi.org/api/v1/lyrics/record-info?taskId=${taskId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${sunoApiKey}`,
@@ -582,7 +583,7 @@ async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: str
     await new Promise(resolve => setTimeout(resolve, pollInterval));
     
     try {
-      const statusResponse = await fetch(`https://api.sunoapi.org/api/v1/get?ids=${taskId}`, {
+      const statusResponse = await fetch(`https://api.sunoapi.org/api/v1/generate/record-info?taskId=${taskId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${sunoApiKey}`,
@@ -601,19 +602,24 @@ async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: str
           .update({ progress: Math.round(progressPercent) })
           .eq('id', jobId);
         
-        if (statusData.success && statusData.data && statusData.data.length > 0) {
-          const track = statusData.data[0];
+        // Handle /api/v1/generate/record-info response structure
+        if (statusData.code === 200 && statusData.data?.response) {
+          const response = statusData.data.response;
           
-          if (track.status === 'completed' && track.audio_url) {
-            generationResult = track;
-            break;
+          if (response.status === 'SUCCESS' && response.data && response.data.length > 0) {
+            const track = response.data[0];
+            
+            if (track.status === 'complete' && track.audio_url) {
+              generationResult = track;
+              break;
+            }
+            
+            if (track.status === 'error') {
+              throw new Error(`Suno generation failed: ${track.error_message || 'Unknown error'}`);
+            }
+            
+            console.log(`Track status: ${track.status}, continuing to poll...`);
           }
-          
-          if (track.status === 'failed') {
-            throw new Error(`Suno generation failed: ${track.error_message || 'Unknown error'}`);
-          }
-          
-          console.log(`Track status: ${track.status}, continuing to poll...`);
         }
       } else {
         console.warn(`Status check failed: ${statusResponse.status}`);
