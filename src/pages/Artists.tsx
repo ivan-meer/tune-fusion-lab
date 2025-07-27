@@ -354,3 +354,5 @@ export const Artists = () => {
     </PageTransition>
   );
 };
+
+export default Artists;
