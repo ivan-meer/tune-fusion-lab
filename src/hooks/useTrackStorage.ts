@@ -161,14 +161,19 @@ export function useTrackStorage(): TrackStorageOperations & {
       setIsLoading(true);
       setError(null);
 
-      // Generate file path
+      // Generate file path: user_id/track_id.extension
       const fileExtension = file.name.split('.').pop();
       const fileName = `${trackId}.${fileExtension}`;
-      const filePath = `tracks/${fileName}`;
+      
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+      
+      const filePath = `${user.id}/${fileName}`;
 
       // Upload file to storage
       const { error: uploadError } = await supabase.storage
-        .from('audio-tracks')
+        .from('tracks')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: true, // Overwrite if exists
@@ -231,7 +236,7 @@ export function useTrackStorage(): TrackStorageOperations & {
       setError(null);
 
       const { error: deleteError } = await supabase.storage
-        .from('audio-tracks')
+        .from('tracks')
         .remove([filePath]);
 
       if (deleteError) {
@@ -270,7 +275,7 @@ export function useTrackStorage(): TrackStorageOperations & {
    */
   const getPublicUrl = useCallback((filePath: string): string => {
     const { data } = supabase.storage
-      .from('audio-tracks')
+      .from('tracks')
       .getPublicUrl(filePath);
     
     return data.publicUrl;
@@ -285,9 +290,9 @@ export function useTrackStorage(): TrackStorageOperations & {
   const validateFileExists = useCallback(async (filePath: string): Promise<boolean> => {
     try {
       const { data, error } = await supabase.storage
-        .from('audio-tracks')
+        .from('tracks')
         .list('', {
-          search: filePath
+          search: filePath.split('/').pop() // Search by filename only
         });
 
       if (error) {
@@ -313,8 +318,8 @@ export function useTrackStorage(): TrackStorageOperations & {
       setError(null);
 
       const { data, error } = await supabase.storage
-        .from('audio-tracks')
-        .list('tracks', {
+        .from('tracks')
+        .list('', {
           limit: 1000,
           sortBy: { column: 'created_at', order: 'desc' }
         });
@@ -368,10 +373,11 @@ export function useTrackStorage(): TrackStorageOperations & {
 
       const databasePaths = new Set(tracks?.map(t => t.file_path) || []);
       
-      // Find orphaned files
-      const orphanedFiles = storageFiles.filter(file => 
-        !databasePaths.has(`tracks/${file.name}`)
-      );
+      // Find orphaned files (simplified check)
+      const orphanedFiles = storageFiles.filter(file => {
+        // Check if any database path contains this file name
+        return !Array.from(databasePaths).some(path => path && path.includes(file.name));
+      });
 
       if (orphanedFiles.length === 0) {
         toast({

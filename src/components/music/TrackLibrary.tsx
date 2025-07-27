@@ -25,6 +25,7 @@ import {
   Upload
 } from 'lucide-react';
 import { useOptimizedUserTracks } from '@/hooks/useOptimizedUserTracks';
+import { useTrackStorage } from '@/hooks/useTrackStorage';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -82,7 +83,9 @@ const FilterBar = memo<{
   viewMode: 'grid' | 'list';
   onViewModeChange: (mode: 'grid' | 'list') => void;
   onRefresh: () => void;
+  onSync?: () => void;
   isRefreshing?: boolean;
+  isSyncing?: boolean;
 }>(({
   searchQuery,
   onSearchChange,
@@ -95,7 +98,9 @@ const FilterBar = memo<{
   viewMode,
   onViewModeChange,
   onRefresh,
-  isRefreshing
+  onSync,
+  isRefreshing,
+  isSyncing
 }) => {
   return (
     <div className="space-y-4">
@@ -121,6 +126,19 @@ const FilterBar = memo<{
           <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
           Обновить
         </Button>
+
+        {onSync && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onSync}
+            disabled={isSyncing}
+            className="flex items-center gap-2"
+          >
+            <Settings className={cn("w-4 h-4", isSyncing && "animate-spin")} />
+            Синхронизация
+          </Button>
+        )}
         
         <div className="flex items-center border rounded-lg">
           <Button
@@ -216,6 +234,9 @@ const TrackLibrary = memo(() => {
     isLikingTrack
   } = useOptimizedUserTracks();
 
+  // Use track storage for sync operations
+  const { syncTrackUrls, isLoading: isSyncing } = useTrackStorage();
+
   // Memoized filtered and sorted tracks
   const filteredAndSortedTracks = useMemo(() => {
     let filtered = tracks;
@@ -298,6 +319,16 @@ const TrackLibrary = memo(() => {
     }
   }, [toast]);
 
+  // Handle sync
+  const handleSync = useCallback(async () => {
+    try {
+      await syncTrackUrls();
+      reloadTracks();
+    } catch (error) {
+      console.error('Sync error:', error);
+    }
+  }, [syncTrackUrls, reloadTracks]);
+
   // Error state
   if (error) {
     return (
@@ -349,7 +380,9 @@ const TrackLibrary = memo(() => {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         onRefresh={reloadTracks}
+        onSync={handleSync}
         isRefreshing={isRefetching}
+        isSyncing={isSyncing}
       />
 
       {/* Track List */}
