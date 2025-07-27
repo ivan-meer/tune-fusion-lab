@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import MusicStudio from '../MusicStudio';
+import UnifiedMusicStudio from '../UnifiedMusicStudio';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useMusicGeneration } from '@/hooks/useMusicGeneration';
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
@@ -31,7 +31,7 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => (
   </BrowserRouter>
 );
 
-describe('MusicStudio', () => {
+describe('UnifiedMusicStudio', () => {
   const mockGenerateMusic = vi.fn();
   const mockResetGeneration = vi.fn();
 
@@ -61,7 +61,7 @@ describe('MusicStudio', () => {
   it('component mounts without errors', () => {
     const { container } = render(
       <TestWrapper>
-        <MusicStudio />
+        <UnifiedMusicStudio />
       </TestWrapper>
     );
 
@@ -97,7 +97,7 @@ describe('MusicStudio', () => {
 
       const { container } = render(
         <TestWrapper>
-          <MusicStudio />
+          <UnifiedMusicStudio />
         </TestWrapper>
       );
 

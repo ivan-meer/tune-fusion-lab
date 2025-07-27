@@ -13,7 +13,7 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Music, Library, Sparkles, Settings, Layers } from 'lucide-react';
 
-import MusicCreator from '../unified/MusicCreator';
+import UnifiedMusicStudio from '../UnifiedMusicStudio';
 import TrackLibrary from '../TrackLibrary';
 import { MusicPipeline } from '../pipeline/MusicPipeline';
 import { PipelineFragments } from '../pipeline/PipelineFragments';
@@ -44,18 +44,14 @@ export default function MusicApp() {
 
       {/* Main Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-        <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto h-12">
+        <TabsList className="grid w-full grid-cols-3 max-w-xl mx-auto h-12">
           <TabsTrigger value="create" className="flex items-center gap-2 text-sm font-medium">
             <Music className="h-4 w-4" />
             <span className="hidden sm:inline">Создать</span>
           </TabsTrigger>
           <TabsTrigger value="pipeline" className="flex items-center gap-2 text-sm font-medium">
             <Settings className="h-4 w-4" />
-            <span className="hidden sm:inline">Пайплайн</span>
-          </TabsTrigger>
-          <TabsTrigger value="fragments" className="flex items-center gap-2 text-sm font-medium">
-            <Layers className="h-4 w-4" />
-            <span className="hidden sm:inline">Фрагменты</span>
+            <span className="hidden sm:inline">Обработка</span>
           </TabsTrigger>
           <TabsTrigger value="library" className="flex items-center gap-2 text-sm font-medium">
             <Library className="h-4 w-4" />
@@ -65,37 +61,36 @@ export default function MusicApp() {
 
         {/* Create Music Tab */}
         <TabsContent value="create" className="space-y-6">
-          <MusicCreator />
+          <UnifiedMusicStudio />
         </TabsContent>
 
-        {/* Pipeline Tab */}
+        {/* Processing Tab - Combines Pipeline and Fragments */}
         <TabsContent value="pipeline" className="space-y-6">
-          <MusicPipeline />
-        </TabsContent>
-
-        {/* Fragments Tab */}
-        <TabsContent value="fragments" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Layers className="h-5 w-5 text-primary" />
-                Отдельные фрагменты пайплайна
-              </CardTitle>
-            </CardHeader>
-          </Card>
-          <PipelineFragments />
+          <div className="grid gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5 text-primary" />
+                  Полный пайплайн
+                </CardTitle>
+              </CardHeader>
+            </Card>
+            <MusicPipeline />
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Layers className="h-5 w-5 text-primary" />
+                  Отдельные операции
+                </CardTitle>
+              </CardHeader>
+            </Card>
+            <PipelineFragments />
+          </div>
         </TabsContent>
 
         {/* Library Tab */}
         <TabsContent value="library" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Library className="h-5 w-5 text-primary" />
-                Ваша музыкальная библиотека
-              </CardTitle>
-            </CardHeader>
-          </Card>
           <TrackLibrary />
         </TabsContent>
       </Tabs>
