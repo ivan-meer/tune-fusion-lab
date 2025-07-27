@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useUserTracks } from './useUserTracks';
 
 export interface GenerationRequest {
   prompt: string;
@@ -30,6 +31,7 @@ export function useMusicGeneration() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentJob, setCurrentJob] = useState<GenerationJob | null>(null);
   const { toast } = useToast();
+  const { loadTracks } = useUserTracks();
 
   // Poll for job status updates using edge function
   const pollJobStatus = useCallback(async (jobId: string) => {
@@ -68,6 +70,8 @@ export function useMusicGeneration() {
             title: "Генерация завершена!",
             description: job.track ? `Трек "${job.track.title}" готов к прослушиванию` : "Трек готов к прослушиванию"
           });
+          // Reload user tracks to show the new track
+          await loadTracks();
           return true; // Stop polling
         } else if (job.status === 'failed') {
           setIsGenerating(false);
@@ -84,7 +88,7 @@ export function useMusicGeneration() {
       console.error('Error in pollJobStatus:', error);
       return false;
     }
-  }, [toast]);
+  }, [toast, loadTracks]);
 
   // Setup realtime subscription for generation jobs
   useEffect(() => {
@@ -102,7 +106,7 @@ export function useMusicGeneration() {
           table: 'generation_jobs',
           filter: `id=eq.${currentJob.id}`
         },
-        (payload) => {
+        async (payload) => {
           console.log('Realtime job update:', payload);
           const updatedJob = payload.new;
           
@@ -116,7 +120,12 @@ export function useMusicGeneration() {
             // Handle completion
             if (updatedJob.status === 'completed') {
               setIsGenerating(false);
-              // Fetch track details
+              // Fetch track details and reload tracks
+              try {
+                await loadTracks();
+              } catch (err) {
+                console.error('Failed to reload tracks:', err);
+              }
               pollJobStatus(updatedJob.id);
             } else if (updatedJob.status === 'failed') {
               setIsGenerating(false);
@@ -135,7 +144,7 @@ export function useMusicGeneration() {
       console.log('Cleaning up realtime subscription');
       supabase.removeChannel(channel);
     };
-  }, [currentJob?.id, toast, pollJobStatus]);
+  }, [currentJob?.id, toast, pollJobStatus, loadTracks]);
 
   const generateMusic = useCallback(async (request: GenerationRequest) => {
     try {
