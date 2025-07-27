@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 import { Track } from '@/hooks/useUserTracks';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 // Query keys for React Query
 export const trackQueryKeys = {
@@ -40,7 +40,7 @@ const transformTrack = (dbTrack: any): Track => ({
   updated_at: dbTrack.updated_at
 });
 
-// Fetch user tracks function
+// Fetch user tracks function with error handling
 const fetchUserTracks = async (userId: string): Promise<Track[]> => {
   const { data, error } = await supabase
     .from('tracks')
@@ -60,16 +60,21 @@ export function useOptimizedUserTracks() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Main tracks query
+  // Main tracks query with optimized configuration
   const tracksQuery = useQuery({
     queryKey: trackQueryKeys.user(user?.id || ''),
     queryFn: () => fetchUserTracks(user!.id),
     enabled: !!user,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    retry: 2,
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
-  // Delete track mutation
+  // Memoized tracks data for stable references
+  const tracks = useMemo(() => tracksQuery.data || [], [tracksQuery.data]);
+
+  // Delete track mutation with optimistic updates
   const deleteTrackMutation = useMutation({
     mutationFn: async (trackId: string) => {
       if (!user) throw new Error('User not authenticated');
@@ -83,28 +88,46 @@ export function useOptimizedUserTracks() {
       if (error) throw new Error(error.message);
       return trackId;
     },
-    onSuccess: (deletedTrackId) => {
-      // Optimistic update
+    onMutate: async (trackId) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: trackQueryKeys.user(user!.id) });
+
+      // Snapshot the previous value
+      const previousTracks = queryClient.getQueryData<Track[]>(trackQueryKeys.user(user!.id));
+
+      // Optimistically update the cache
       queryClient.setQueryData<Track[]>(
         trackQueryKeys.user(user!.id),
-        (old) => old?.filter(track => track.id !== deletedTrackId) || []
+        (old) => old?.filter(track => track.id !== trackId) || []
       );
-      
-      toast({
-        title: "Трек удален",
-        description: "Трек успешно удален из библиотеки",
-      });
+
+      return { previousTracks };
     },
-    onError: (error) => {
+    onError: (error, trackId, context) => {
+      // Rollback on error
+      if (context?.previousTracks) {
+        queryClient.setQueryData(trackQueryKeys.user(user!.id), context.previousTracks);
+      }
+      
       toast({
         title: "Ошибка удаления",
         description: error.message,
         variant: "destructive",
       });
     },
+    onSuccess: () => {
+      toast({
+        title: "Трек удален",
+        description: "Трек успешно удален из библиотеки",
+      });
+    },
+    onSettled: () => {
+      // Always refetch after error or success
+      queryClient.invalidateQueries({ queryKey: trackQueryKeys.user(user!.id) });
+    },
   });
 
-  // Update track mutation
+  // Update track mutation with optimistic updates
   const updateTrackMutation = useMutation({
     mutationFn: async ({ trackId, updates }: { trackId: string, updates: Partial<Track> }) => {
       if (!user) throw new Error('User not authenticated');
@@ -120,25 +143,37 @@ export function useOptimizedUserTracks() {
       if (error) throw new Error(error.message);
       return transformTrack(data);
     },
-    onSuccess: (updatedTrack) => {
-      // Optimistic update
+    onMutate: async ({ trackId, updates }) => {
+      await queryClient.cancelQueries({ queryKey: trackQueryKeys.user(user!.id) });
+
+      const previousTracks = queryClient.getQueryData<Track[]>(trackQueryKeys.user(user!.id));
+
       queryClient.setQueryData<Track[]>(
         trackQueryKeys.user(user!.id),
         (old) => old?.map(track => 
-          track.id === updatedTrack.id ? updatedTrack : track
+          track.id === trackId ? { ...track, ...updates } : track
         ) || []
       );
+
+      return { previousTracks };
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
+      if (context?.previousTracks) {
+        queryClient.setQueryData(trackQueryKeys.user(user!.id), context.previousTracks);
+      }
+      
       toast({
         title: "Ошибка обновления",
         description: error.message,
         variant: "destructive",
       });
     },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: trackQueryKeys.user(user!.id) });
+    },
   });
 
-  // Like track mutation
+  // Like track mutation with optimistic updates
   const likeTrackMutation = useMutation({
     mutationFn: async (trackId: string) => {
       if (!user) throw new Error('User not authenticated');
@@ -149,8 +184,11 @@ export function useOptimizedUserTracks() {
         .select('id')
         .eq('user_id', user.id)
         .eq('track_id', trackId)
-        .single();
+        .maybeSingle();
 
+      const currentTracks = queryClient.getQueryData<Track[]>(trackQueryKeys.user(user.id));
+      const currentTrack = currentTracks?.find(t => t.id === trackId);
+      
       if (existingLike) {
         // Unlike
         await supabase
@@ -159,10 +197,6 @@ export function useOptimizedUserTracks() {
           .eq('user_id', user.id)
           .eq('track_id', trackId);
 
-        // Get current track data to decrease like count
-        const currentTracks = queryClient.getQueryData<Track[]>(trackQueryKeys.user(user.id));
-        const currentTrack = currentTracks?.find(t => t.id === trackId);
-        
         await supabase
           .from('tracks')
           .update({ like_count: Math.max(0, (currentTrack?.like_count || 1) - 1) })
@@ -178,10 +212,6 @@ export function useOptimizedUserTracks() {
             track_id: trackId
           });
 
-        // Get current track data to increase like count
-        const currentTracks = queryClient.getQueryData<Track[]>(trackQueryKeys.user(user.id));
-        const currentTrack = currentTracks?.find(t => t.id === trackId);
-        
         await supabase
           .from('tracks')
           .update({ like_count: (currentTrack?.like_count || 0) + 1 })
@@ -190,21 +220,45 @@ export function useOptimizedUserTracks() {
         return { trackId, liked: true, newCount: (currentTrack?.like_count || 0) + 1 };
       }
     },
+    onMutate: async (trackId) => {
+      await queryClient.cancelQueries({ queryKey: trackQueryKeys.user(user!.id) });
+
+      const previousTracks = queryClient.getQueryData<Track[]>(trackQueryKeys.user(user!.id));
+      const currentTrack = previousTracks?.find(t => t.id === trackId);
+      
+      if (currentTrack) {
+        // Optimistically toggle like count
+        const newCount = currentTrack.like_count > 0 ? currentTrack.like_count - 1 : currentTrack.like_count + 1;
+        
+        queryClient.setQueryData<Track[]>(
+          trackQueryKeys.user(user!.id),
+          (old) => old?.map(track => 
+            track.id === trackId ? { ...track, like_count: newCount } : track
+          ) || []
+        );
+      }
+
+      return { previousTracks };
+    },
+    onError: (error, trackId, context) => {
+      if (context?.previousTracks) {
+        queryClient.setQueryData(trackQueryKeys.user(user!.id), context.previousTracks);
+      }
+      
+      toast({
+        title: "Ошибка лайка",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
     onSuccess: ({ trackId, newCount }) => {
-      // Optimistic update
+      // Ensure the final state is correct
       queryClient.setQueryData<Track[]>(
         trackQueryKeys.user(user!.id),
         (old) => old?.map(track => 
           track.id === trackId ? { ...track, like_count: newCount } : track
         ) || []
       );
-    },
-    onError: (error) => {
-      toast({
-        title: "Ошибка лайка",
-        description: error.message,
-        variant: "destructive",
-      });
     },
   });
 
@@ -218,7 +272,7 @@ export function useOptimizedUserTracks() {
     }
   }, [user, queryClient]);
 
-  // Set up real-time updates
+  // Set up real-time updates with error handling
   useEffect(() => {
     if (!user) return;
 
@@ -248,14 +302,20 @@ export function useOptimizedUserTracks() {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          // Update specific track in cache
-          const updatedTrack = transformTrack(payload.new);
-          queryClient.setQueryData<Track[]>(
-            trackQueryKeys.user(user.id),
-            (old) => old?.map(track => 
-              track.id === updatedTrack.id ? updatedTrack : track
-            ) || []
-          );
+          try {
+            // Update specific track in cache
+            const updatedTrack = transformTrack(payload.new);
+            queryClient.setQueryData<Track[]>(
+              trackQueryKeys.user(user.id),
+              (old) => old?.map(track => 
+                track.id === updatedTrack.id ? updatedTrack : track
+              ) || []
+            );
+          } catch (error) {
+            console.error('Error processing real-time update:', error);
+            // Fallback to full refresh
+            queryClient.invalidateQueries({ queryKey: trackQueryKeys.user(user.id) });
+          }
         }
       )
       .subscribe();
@@ -266,12 +326,12 @@ export function useOptimizedUserTracks() {
   }, [user, queryClient]);
 
   return {
-    tracks: tracksQuery.data || [],
+    tracks,
     isLoading: tracksQuery.isLoading,
     error: tracksQuery.error?.message || null,
     isRefetching: tracksQuery.isRefetching,
     
-    // Actions
+    // Actions with proper loading states
     deleteTrack: deleteTrackMutation.mutate,
     updateTrack: updateTrackMutation.mutate,
     likeTrack: likeTrackMutation.mutate,
