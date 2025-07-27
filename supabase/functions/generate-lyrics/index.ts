@@ -59,39 +59,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate lyrics using Suno API - use /api/v1/lyrics/generate for pure lyrics
+    // Generate lyrics using Suno API - use /api/v1/generate with wait_audio: false
     const callbackUrl = `${supabaseUrl}/functions/v1/suno-callback`;
     
-    // Создаем структурированный промпт для генерации лирики
-    const structuredPrompt = `Создай профессиональную лирику для ${lyricsRequest.style || 'pop'} песни на тему: "${lyricsRequest.prompt}". 
-      
-Требования:
-- Структура: [Verse], [Chorus], [Verse], [Chorus], [Bridge], [Chorus], [Outro]
-- Язык: ${lyricsRequest.language || 'русский'}
-- Стиль: ${lyricsRequest.style || 'pop'}
-- Настроение соответствует описанию: ${lyricsRequest.prompt}
-- Добавь теги в формате Suno AI в начале
-- Рифмы должны быть естественными и красивыми
-- Текст должен быть эмоциональным и запоминающимся
-- Используй современную поэтику
-
-Пример структуры с тегами:
-[Intro]
-[Verse]
-текст куплета...
-[Chorus]  
-текст припева...
-
-Создай полноценный текст песни с правильной структурой и тегами.`;
-
     const requestBody = {
-      content: structuredPrompt,
+      prompt: lyricsRequest.prompt,
+      style: lyricsRequest.style || 'pop',
+      title: `Lyrics: ${lyricsRequest.prompt.substring(0, 50)}...`,
+      model: 'V4_5',
+      customMode: true,
+      instrumental: false,
+      wait_audio: false, // Ключевой параметр для генерации только лирики
       callBackUrl: callbackUrl
     };
 
-    console.log('Sending LYRICS-ONLY request to Suno API:', JSON.stringify({...requestBody, callBackUrl: '[REDACTED]'}, null, 2));
+    console.log('Sending LYRICS request to Suno API:', JSON.stringify({...requestBody, callBackUrl: '[REDACTED]'}, null, 2));
 
-    const lyricsResponse = await fetch('https://api.sunoapi.org/api/v1/lyrics/generate', {
+    const lyricsResponse = await fetch('https://api.sunoapi.org/api/v1/generate', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
@@ -143,8 +127,8 @@ Deno.serve(async (req) => {
           provider_lyrics_id: lyricsData.data.taskId,
           generation_params: {
             ...lyricsRequest,
-            structured_prompt: structuredPrompt,
-            endpoint_used: '/api/v1/style/generate'
+            wait_audio: false,
+            endpoint_used: '/api/v1/generate'
           }
         })
         .select()

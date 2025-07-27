@@ -192,43 +192,35 @@ Deno.serve(async (req) => {
           console.warn('WARNING: Audio URL present in lyrics-only request. Extracting lyrics anyway.');
         }
         
-        // Приоритетный порядок извлечения лирики
-        // Сначала проверяем поля для сгенерированного контента (lyrics generation)
-        if (data.data && data.data.length > 0 && data.data[0].result) {
-          // Обрабатываем ответ от /api/v1/style/generate
-          lyricsContent = data.data[0].result;
-          console.log('✅ Extracted lyrics from style/generate result field');
-        } else if (firstItem.text && firstItem.text.length > 50 && !firstItem.text.includes('Создай профессиональную лирику')) {
+        // Извлекаем лирику согласно документации /api/v1/lyrics/record-info
+        // Проверяем callback от generate с wait_audio: false
+        if (data.lyricsData && data.lyricsData.length > 0) {
+          // Прямой callback с lyricsData
+          const lyricsItem = data.lyricsData[0];
+          if (lyricsItem.text && lyricsItem.status === 'complete') {
+            lyricsContent = lyricsItem.text;
+            console.log('✅ Extracted lyrics from lyricsData[0].text');
+          }
+        } else if (firstItem.text && firstItem.text.length > 50 && !firstItem.text.includes('Создай профессиональную') && !firstItem.text.includes('Требования:')) {
           lyricsContent = firstItem.text;
           console.log('✅ Extracted lyrics from "text" field');
-        } else if (firstItem.lyrics && firstItem.lyrics.length > 50) {
+        } else if (firstItem.lyrics && firstItem.lyrics.length > 50 && !firstItem.lyrics.includes('Требования:')) {
           lyricsContent = firstItem.lyrics;
           console.log('✅ Extracted lyrics from "lyrics" field');
-        } else if (firstItem.lyric_text && firstItem.lyric_text.length > 50) {
-          lyricsContent = firstItem.lyric_text;
-          console.log('✅ Extracted lyrics from "lyric_text" field');
-        } else if (firstItem.content && firstItem.content.length > 50 && !firstItem.content.includes('Создай профессиональную лирику')) {
+        } else if (firstItem.content && firstItem.content.length > 100 && !firstItem.content.includes('Создай профессиональную') && !firstItem.content.includes('Требования:')) {
           lyricsContent = firstItem.content;
           console.log('✅ Extracted lyrics from "content" field');
-        } else if (firstItem.generated_text && firstItem.generated_text.length > 50) {
-          lyricsContent = firstItem.generated_text;
-          console.log('✅ Extracted lyrics from "generated_text" field');
         } else {
-          // Fallback - попробуем извлечь из prompt если он содержит структуру песни
-          if (firstItem.prompt && firstItem.prompt.includes('[Verse]') && firstItem.prompt.includes('[Chorus]')) {
-            lyricsContent = firstItem.prompt;
-            console.log('⚠️ Using structured prompt as lyrics fallback');
-          } else {
-            console.error('❌ No valid lyrics content found in any field');
-            console.log('Available fields and their lengths:');
-            Object.keys(firstItem).forEach(key => {
-              const value = firstItem[key];
-              if (typeof value === 'string') {
-                console.log(`  ${key}: ${value.length} chars`);
-              }
-            });
-            lyricsContent = 'Лирика сгенерирована, но текст не найден в ожидаемых полях callback данных. Проверьте логи для диагностики.';
-          }
+          // ВАЖНО: НЕ используем prompt как источник лирики!
+          console.error('❌ No valid lyrics content found - все поля содержат промпт, а не сгенерированную лирику');
+          console.log('Available fields and their content previews:');
+          Object.keys(firstItem).forEach(key => {
+            const value = firstItem[key];
+            if (typeof value === 'string' && value.length > 0) {
+              console.log(`  ${key}: "${value.substring(0, 100)}..."`);
+            }
+          });
+          lyricsContent = 'Ошибка: получен промпт вместо сгенерированной лирики. Попробуйте снова.';
         }
         
         // Clean up the lyrics content if it's too long or contains generation instructions
