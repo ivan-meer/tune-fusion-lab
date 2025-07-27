@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Music, Library, Sparkles, Settings, Layers, Upload } from 'lucide-react';
 
 import UnifiedMusicStudio from '../UnifiedMusicStudio';
+import MusicStudioAdvanced from '../advanced/MusicStudioAdvanced';
 import TrackLibrary from '../TrackLibrary';
 import TrackUploader from '../TrackUploader';
 import UploadAnalytics from '../UploadAnalytics';
@@ -46,10 +47,14 @@ export default function MusicApp() {
 
       {/* Main Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-        <TabsList className="flex w-full max-w-4xl mx-auto h-12 gap-1">
+        <TabsList className="flex w-full max-w-5xl mx-auto h-12 gap-1">
           <TabsTrigger value="create" className="flex items-center gap-2 text-sm font-medium">
             <Music className="h-4 w-4" />
-            <span className="hidden sm:inline">Создать</span>
+            <span className="hidden sm:inline">Простое</span>
+          </TabsTrigger>
+          <TabsTrigger value="advanced" className="flex items-center gap-2 text-sm font-medium">
+            <Layers className="h-4 w-4" />
+            <span className="hidden sm:inline">Продвинутое</span>
           </TabsTrigger>
           <TabsTrigger value="upload" className="flex items-center gap-2 text-sm font-medium">
             <Upload className="h-4 w-4" />
@@ -69,9 +74,14 @@ export default function MusicApp() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Create Music Tab */}
+        {/* Simple Create Music Tab */}
         <TabsContent value="create" className="space-y-6">
           <UnifiedMusicStudio />
+        </TabsContent>
+
+        {/* Advanced Create Music Tab */}
+        <TabsContent value="advanced" className="space-y-6">
+          <MusicStudioAdvanced />
         </TabsContent>
 
         {/* Upload Tab */}
