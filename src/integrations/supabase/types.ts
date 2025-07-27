@@ -260,6 +260,39 @@ export type Database = {
           },
         ]
       }
+      artists: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          style: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          style?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          style?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chats: {
         Row: {
           agent_id: string
@@ -537,6 +570,72 @@ export type Database = {
           updated_at?: string
           user_status?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      project_tracks: {
+        Row: {
+          added_at: string
+          id: string
+          position: number
+          project_id: string
+          track_id: string
+        }
+        Insert: {
+          added_at?: string
+          id?: string
+          position?: number
+          project_id: string
+          track_id: string
+        }
+        Update: {
+          added_at?: string
+          id?: string
+          position?: number
+          project_id?: string
+          track_id?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          artist_id: string
+          concept: string | null
+          cover_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          style: string | null
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          artist_id: string
+          concept?: string | null
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          style?: string | null
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          artist_id?: string
+          concept?: string | null
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          style?: string | null
+          type?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
