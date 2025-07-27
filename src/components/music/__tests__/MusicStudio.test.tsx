@@ -50,7 +50,9 @@ describe('MusicStudio', () => {
       generateMusic: mockGenerateMusic,
       resetGeneration: mockResetGeneration,
       isGenerating: false,
-      currentJob: null
+      currentJob: null,
+      connectProgress: vi.fn(),
+      disconnectProgress: vi.fn()
     });
 
     mockUseRealtimeUpdates.mockReturnValue(undefined);
@@ -88,6 +90,8 @@ describe('MusicStudio', () => {
       mockUseMusicGeneration.mockReturnValue({
         generateMusic: mockGenerateMusic,
         resetGeneration: mockResetGeneration,
+        connectProgress: vi.fn(),
+        disconnectProgress: vi.fn(),
         ...state
       });
 

@@ -57,3 +57,18 @@ verify_jwt = false
 
 [functions.test-auth]
 verify_jwt = true
+
+[functions.enhanced-generate-music]
+verify_jwt = true
+
+[functions.realtime-progress]
+verify_jwt = false
+
+[functions.prompt-enhancer]
+verify_jwt = true
+
+[functions.style-enhance]
+verify_jwt = true
+
+[functions.check-credits]
+verify_jwt = true

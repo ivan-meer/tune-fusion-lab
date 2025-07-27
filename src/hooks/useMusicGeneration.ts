@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { useUserTracks } from './useUserTracks';
+import { useToast } from "@/hooks/use-toast";
+import { useRealtimeUpdates } from './useRealtimeUpdates';
+import { useRealtimeProgress } from './useRealtimeProgress';
 
 export interface GenerationRequest {
   prompt: string;
@@ -30,8 +31,9 @@ export interface GenerationJob {
 export function useMusicGeneration() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentJob, setCurrentJob] = useState<GenerationJob | null>(null);
+  const { connect: connectProgress, disconnect: disconnectProgress } = useRealtimeProgress();
   const { toast } = useToast();
-  const { loadTracks } = useUserTracks();
+  // const { loadTracks } = useUserTracks(); // TODO: Implement track reloading
 
   // Poll for job status updates using edge function
   const pollJobStatus = useCallback(async (jobId: string) => {
@@ -71,7 +73,7 @@ export function useMusicGeneration() {
             description: job.track ? `Трек "${job.track.title}" готов к прослушиванию` : "Трек готов к прослушиванию"
           });
           // Reload user tracks to show the new track
-          await loadTracks();
+          // await loadTracks(); // TODO: Implement track reloading
           return true; // Stop polling
         } else if (job.status === 'failed') {
           setIsGenerating(false);
@@ -88,7 +90,7 @@ export function useMusicGeneration() {
       console.error('Error in pollJobStatus:', error);
       return false;
     }
-  }, [toast, loadTracks]);
+  }, [toast]);
 
   // Setup realtime subscription for generation jobs
   useEffect(() => {
@@ -122,7 +124,7 @@ export function useMusicGeneration() {
               setIsGenerating(false);
               // Fetch track details and reload tracks
               try {
-                await loadTracks();
+                // await loadTracks(); // TODO: Implement track reloading
               } catch (err) {
                 console.error('Failed to reload tracks:', err);
               }
@@ -144,7 +146,7 @@ export function useMusicGeneration() {
       console.log('Cleaning up realtime subscription');
       supabase.removeChannel(channel);
     };
-  }, [currentJob?.id, toast, pollJobStatus, loadTracks]);
+  }, [currentJob?.id, toast, pollJobStatus]);
 
   const generateMusic = useCallback(async (request: GenerationRequest) => {
     try {
@@ -225,12 +227,15 @@ export function useMusicGeneration() {
   const resetGeneration = useCallback(() => {
     setCurrentJob(null);
     setIsGenerating(false);
-  }, []);
+    disconnectProgress();
+  }, [disconnectProgress]);
 
   return {
     generateMusic,
     resetGeneration,
     isGenerating,
-    currentJob
+    currentJob,
+    connectProgress,
+    disconnectProgress
   };
 }
