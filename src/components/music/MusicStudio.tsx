@@ -174,50 +174,56 @@ export default function MusicStudio() {
       if (data?.success && data.lyrics) {
         const lyricsId = data.lyrics.id;
         
-        // Подписываемся на обновления лирики
-        const channel = supabase
-          .channel('lyrics-updates')
-          .on(
-            'postgres_changes',
-            {
-              event: 'UPDATE',
-              schema: 'public',
-              table: 'lyrics',
-              filter: `id=eq.${lyricsId}`
-            },
-            (payload) => {
-              console.log('Lyrics updated:', payload.new);
-              if (payload.new.content && payload.new.content !== "Генерация лирики в процессе... Ожидайте результат.") {
-                setLyrics(payload.new.content);
-                setIsGeneratingLyrics(false);
-                toast({
-                  title: "🎤 Лирика сгенерирована!",
-                  description: "Текст песни создан с помощью ИИ"
-                });
-                // Отписываемся от канала после получения результата
-                supabase.removeChannel(channel);
-              }
-            }
-          )
-          .subscribe();
-
-        // Таймаут на случай если callback не придет
-        setTimeout(() => {
-          if (isGeneratingLyrics) {
+        // Проверяем, не готова ли уже лирика
+        const checkExistingLyrics = async () => {
+          const { data: existingLyrics } = await supabase
+            .from('lyrics')
+            .select('content')
+            .eq('id', lyricsId)
+            .single();
+            
+          if (existingLyrics?.content && existingLyrics.content !== "Генерация лирики в процессе... Ожидайте результат.") {
+            setLyrics(existingLyrics.content);
             setIsGeneratingLyrics(false);
-            supabase.removeChannel(channel);
             toast({
-              title: "⏰ Генерация занимает больше времени",
-              description: "Попробуйте обновить страницу через минуту",
-              variant: "destructive"
+              title: "🎤 Лирика сгенерирована!",
+              description: "Текст песни создан с помощью ИИ"
             });
+            return true;
           }
-        }, 120000); // 2 минуты
+          return false;
+        };
 
-        toast({
-          title: "🎵 Генерация лирики начата",
-          description: "Ожидайте результат, это может занять несколько минут"
-        });
+        // Проверяем сразу
+        const isReady = await checkExistingLyrics();
+        
+        if (!isReady) {
+          // Подписываемся на обновления лирики с коротким интервалом проверки
+          const pollInterval = setInterval(async () => {
+            const isNowReady = await checkExistingLyrics();
+            if (isNowReady) {
+              clearInterval(pollInterval);
+            }
+          }, 2000); // Проверка каждые 2 секунды
+
+          // Таймаут на случай если результат не придет
+          setTimeout(() => {
+            clearInterval(pollInterval);
+            if (isGeneratingLyrics) {
+              setIsGeneratingLyrics(false);
+              toast({
+                title: "⏰ Генерация занимает больше времени",
+                description: "Попробуйте обновить страницу через минуту",
+                variant: "destructive"
+              });
+            }
+          }, 120000); // 2 минуты
+
+          toast({
+            title: "🎵 Генерация лирики начата",
+            description: "Ожидайте результат, это может занять несколько минут"
+          });
+        }
       } else {
         throw new Error(data?.error || error?.message || 'Не удалось сгенерировать лирику');
       }
