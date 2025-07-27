@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -31,42 +31,32 @@ export function useMusicGeneration() {
   const [currentJob, setCurrentJob] = useState<GenerationJob | null>(null);
   const { toast } = useToast();
 
-  // Poll for job status updates
+  // Poll for job status updates using edge function
   const pollJobStatus = useCallback(async (jobId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('generation_jobs')
-        .select(`
-          *,
-          tracks (
-            id,
-            title,
-            file_url,
-            artwork_url,
-            duration,
-            created_at
-          )
-        `)
-        .eq('id', jobId)
-        .single();
+      // Use the dedicated edge function for getting status
+      const { data, error } = await supabase.functions.invoke('get-generation-status', {
+        body: { jobId }
+      });
 
       if (error) {
         console.error('Error polling job status:', error);
         return;
       }
 
-      if (data) {
+      if (data?.success && data.job) {
+        const jobData = data.job;
         const job: GenerationJob = {
-          id: data.id,
-          status: data.status as any,
-          progress: data.progress,
-          track: data.tracks ? {
-            id: data.tracks.id,
-            title: data.tracks.title,
-            file_url: data.tracks.file_url,
-            artwork_url: data.tracks.artwork_url,
-            duration: data.tracks.duration,
-            created_at: data.tracks.created_at
+          id: jobData.id,
+          status: jobData.status as any,
+          progress: jobData.progress,
+          track: jobData.tracks ? {
+            id: jobData.tracks.id,
+            title: jobData.tracks.title,
+            file_url: jobData.tracks.file_url,
+            artwork_url: jobData.tracks.artwork_url,
+            duration: jobData.tracks.duration,
+            created_at: jobData.tracks.created_at
           } : undefined
         };
 
@@ -78,19 +68,74 @@ export function useMusicGeneration() {
             title: "Генерация завершена!",
             description: job.track ? `Трек "${job.track.title}" готов к прослушиванию` : "Трек готов к прослушиванию"
           });
+          return true; // Stop polling
         } else if (job.status === 'failed') {
           setIsGenerating(false);
           toast({
             title: "Ошибка генерации",
-            description: data.error_message || "Произошла ошибка при генерации",
+            description: jobData.error_message || "Произошла ошибка при генерации",
             variant: "destructive"
           });
+          return true; // Stop polling
         }
       }
+      return false; // Continue polling
     } catch (error) {
       console.error('Error in pollJobStatus:', error);
+      return false;
     }
   }, [toast]);
+
+  // Setup realtime subscription for generation jobs
+  useEffect(() => {
+    if (!currentJob?.id) return;
+
+    console.log('Setting up realtime subscription for job:', currentJob.id);
+    
+    const channel = supabase
+      .channel('generation-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'generation_jobs',
+          filter: `id=eq.${currentJob.id}`
+        },
+        (payload) => {
+          console.log('Realtime job update:', payload);
+          const updatedJob = payload.new;
+          
+          if (updatedJob) {
+            setCurrentJob(prev => prev ? {
+              ...prev,
+              status: updatedJob.status,
+              progress: updatedJob.progress
+            } : null);
+
+            // Handle completion
+            if (updatedJob.status === 'completed') {
+              setIsGenerating(false);
+              // Fetch track details
+              pollJobStatus(updatedJob.id);
+            } else if (updatedJob.status === 'failed') {
+              setIsGenerating(false);
+              toast({
+                title: "Ошибка генерации",
+                description: updatedJob.error_message || "Произошла ошибка при генерации",
+                variant: "destructive"
+              });
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('Cleaning up realtime subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [currentJob?.id, toast, pollJobStatus]);
 
   const generateMusic = useCallback(async (request: GenerationRequest) => {
     try {
@@ -130,15 +175,25 @@ export function useMusicGeneration() {
         description: "Трек находится в процессе генерации..."
       });
 
-      // Start polling for updates
+      // Start polling for updates with automatic cleanup
       const pollInterval = setInterval(async () => {
-        await pollJobStatus(data.jobId);
-      }, 3000); // Poll every 3 seconds
+        const shouldStop = await pollJobStatus(data.jobId);
+        if (shouldStop) {
+          clearInterval(pollInterval);
+        }
+      }, 2000); // Poll every 2 seconds for faster updates
 
       // Stop polling after 5 minutes
       setTimeout(() => {
         clearInterval(pollInterval);
-        setIsGenerating(false);
+        if (isGenerating) {
+          setIsGenerating(false);
+          toast({
+            title: "Тайм-аут генерации",
+            description: "Генерация заняла слишком много времени",
+            variant: "destructive"
+          });
+        }
       }, 300000);
       
       return data;
