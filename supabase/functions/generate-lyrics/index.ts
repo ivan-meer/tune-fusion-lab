@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
 
     console.log('Sending LYRICS-ONLY request to Suno API:', JSON.stringify({...requestBody, callBackUrl: '[REDACTED]'}, null, 2));
 
-    const lyricsResponse = await fetch('https://api.sunoapi.org/api/v1/style/generate', {
+    const lyricsResponse = await fetch('https://api.sunoapi.org/api/v1/lyrics/generate', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
