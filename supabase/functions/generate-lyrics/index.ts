@@ -84,9 +84,22 @@ Deno.serve(async (req) => {
 
     if (!lyricsResponse.ok) {
       const errorText = await lyricsResponse.text();
-      console.error('Suno lyrics API error:', lyricsResponse.status, errorText);
+      console.error('Suno lyrics API error details:');
+      console.error('Status:', lyricsResponse.status);
+      console.error('Status Text:', lyricsResponse.statusText);
+      console.error('Headers:', Object.fromEntries(lyricsResponse.headers.entries()));
+      console.error('Response Body:', errorText);
+      console.error('Request Body was:', JSON.stringify(requestBody, null, 2));
+      
       return new Response(
-        JSON.stringify({ error: `Suno Lyrics API error: ${lyricsResponse.status} ${errorText}` }),
+        JSON.stringify({ 
+          error: `Suno Lyrics API error: ${lyricsResponse.status} ${errorText}`,
+          details: {
+            status: lyricsResponse.status,
+            statusText: lyricsResponse.statusText,
+            requestBody: requestBody
+          }
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
