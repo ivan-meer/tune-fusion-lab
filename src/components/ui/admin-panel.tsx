@@ -9,19 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  RefreshCw, 
-  AlertCircle, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
-  Download,
-  Filter,
-  Activity,
-  Database,
-  Settings
-} from 'lucide-react';
-
+import { RefreshCw, AlertCircle, CheckCircle, XCircle, Clock, Download, Filter, Activity, Database, Settings } from 'lucide-react';
 interface GenerationJob {
   id: string;
   status: string;
@@ -37,7 +25,6 @@ interface GenerationJob {
   track_id: string | null;
   user_id: string;
 }
-
 interface ApiHealthLog {
   id: string;
   provider: string;
@@ -47,7 +34,6 @@ interface ApiHealthLog {
   error_message: string | null;
   checked_at: string;
 }
-
 interface EdgeFunctionLog {
   timestamp: number;
   level: string;
@@ -55,7 +41,6 @@ interface EdgeFunctionLog {
   function_id: string;
   event_type: string;
 }
-
 export default function AdminPanel() {
   const [generationJobs, setGenerationJobs] = useState<GenerationJob[]>([]);
   const [healthLogs, setHealthLogs] = useState<ApiHealthLog[]>([]);
@@ -64,21 +49,18 @@ export default function AdminPanel() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [providerFilter, setProviderFilter] = useState<string>('all');
   const [timeFilter, setTimeFilter] = useState<string>('24h');
-  const { toast } = useToast();
-
+  const {
+    toast
+  } = useToast();
   const loadGenerationJobs = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from('generation_jobs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100);
-
+      let query = supabase.from('generation_jobs').select('*').order('created_at', {
+        ascending: false
+      }).limit(100);
       if (statusFilter !== 'all') {
         query = query.eq('status', statusFilter);
       }
-
       if (providerFilter !== 'all') {
         query = query.eq('provider', providerFilter);
       }
@@ -90,9 +72,10 @@ export default function AdminPanel() {
         timeAgo.setHours(timeAgo.getHours() - hoursAgo);
         query = query.gte('created_at', timeAgo.toISOString());
       }
-
-      const { data, error } = await query;
-
+      const {
+        data,
+        error
+      } = await query;
       if (error) throw error;
       setGenerationJobs(data || []);
     } catch (error) {
@@ -106,22 +89,20 @@ export default function AdminPanel() {
       setLoading(false);
     }
   };
-
   const loadHealthLogs = async () => {
     try {
-      const { data, error } = await supabase
-        .from('api_health_logs')
-        .select('*')
-        .order('checked_at', { ascending: false })
-        .limit(50);
-
+      const {
+        data,
+        error
+      } = await supabase.from('api_health_logs').select('*').order('checked_at', {
+        ascending: false
+      }).limit(50);
       if (error) throw error;
       setHealthLogs(data || []);
     } catch (error) {
       console.error('Error loading health logs:', error);
     }
   };
-
   const loadEdgeFunctionLogs = async () => {
     try {
       // Note: This would need to be implemented via an edge function
@@ -135,17 +116,17 @@ export default function AdminPanel() {
       console.error('Error loading edge function logs:', error);
     }
   };
-
   const checkApiHealth = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('check-api-health');
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('check-api-health');
       if (error) throw error;
-      
       toast({
         title: "Проверка завершена",
         description: "Статус API обновлен"
       });
-      
       await loadHealthLogs();
     } catch (error) {
       console.error('Error checking API health:', error);
@@ -156,16 +137,14 @@ export default function AdminPanel() {
       });
     }
   };
-
   const exportLogs = () => {
     const data = {
       generationJobs,
       healthLogs,
       exportedAt: new Date().toISOString()
     };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { 
-      type: 'application/json' 
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: 'application/json'
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -176,7 +155,6 @@ export default function AdminPanel() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
-
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
@@ -193,7 +171,6 @@ export default function AdminPanel() {
         return <Clock className="h-4 w-4 text-gray-500" />;
     }
   };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
@@ -210,15 +187,12 @@ export default function AdminPanel() {
         return 'bg-gray-500';
     }
   };
-
   useEffect(() => {
     loadGenerationJobs();
     loadHealthLogs();
     loadEdgeFunctionLogs();
   }, [statusFilter, providerFilter, timeFilter]);
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -232,33 +206,19 @@ export default function AdminPanel() {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={checkApiHealth}
-                disabled={loading}
-              >
+              <Button variant="outline" size="sm" onClick={checkApiHealth} disabled={loading}>
                 <Activity className="h-4 w-4 mr-1" />
                 Проверить API
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportLogs}
-              >
+              <Button variant="outline" size="sm" onClick={exportLogs}>
                 <Download className="h-4 w-4 mr-1" />
                 Экспорт
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  loadGenerationJobs();
-                  loadHealthLogs();
-                  loadEdgeFunctionLogs();
-                }}
-                disabled={loading}
-              >
+              <Button variant="outline" size="sm" onClick={() => {
+              loadGenerationJobs();
+              loadHealthLogs();
+              loadEdgeFunctionLogs();
+            }} disabled={loading}>
                 <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
                 Обновить
               </Button>
@@ -333,8 +293,7 @@ export default function AdminPanel() {
 
               <ScrollArea className="h-[500px]">
                 <div className="space-y-3">
-                  {generationJobs.map((job) => (
-                    <Card key={job.id} className="p-4">
+                  {generationJobs.map(job => <Card key={job.id} className="p-4">
                       <div className="flex items-start justify-between">
                         <div className="space-y-2 flex-1">
                           <div className="flex items-center gap-2">
@@ -345,11 +304,9 @@ export default function AdminPanel() {
                             <Badge variant="outline">
                               {job.provider}
                             </Badge>
-                            {job.model && (
-                              <Badge variant="secondary">
+                            {job.model && <Badge variant="secondary">
                                 {job.model}
-                              </Badge>
-                            )}
+                              </Badge>}
                           </div>
                           
                           <div className="text-sm text-muted-foreground">
@@ -360,43 +317,34 @@ export default function AdminPanel() {
                             <strong>Прогресс:</strong> {job.progress}%
                           </div>
                           
-                          {job.error_message && (
-                            <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+                          {job.error_message && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
                               <strong>Ошибка:</strong> {job.error_message}
-                            </div>
-                          )}
+                            </div>}
 
                           <div className="text-sm">
                             <strong>Создано:</strong> {new Date(job.created_at).toLocaleString('ru-RU')}
                           </div>
 
-                          {job.request_params && (
-                            <details className="text-sm">
+                          {job.request_params && <details className="text-sm">
                               <summary className="cursor-pointer font-medium">Параметры запроса</summary>
-                              <pre className="mt-2 bg-gray-50 p-2 rounded text-xs overflow-x-auto">
+                              <pre className="mt-2 p-2 rounded text-xs overflow-x-auto bg-zinc-900">
                                 {JSON.stringify(job.request_params, null, 2)}
                               </pre>
-                            </details>
-                          )}
+                            </details>}
 
-                          {job.response_data && (
-                            <details className="text-sm">
+                          {job.response_data && <details className="text-sm">
                               <summary className="cursor-pointer font-medium">Ответ API</summary>
                               <pre className="mt-2 bg-gray-50 p-2 rounded text-xs overflow-x-auto">
                                 {JSON.stringify(job.response_data, null, 2)}
                               </pre>
-                            </details>
-                          )}
+                            </details>}
                         </div>
                       </div>
-                    </Card>
-                  ))}
+                    </Card>)}
                   
-                  {generationJobs.length === 0 && !loading && (
-                    <div className="text-center py-8 text-muted-foreground">
+                  {generationJobs.length === 0 && !loading && <div className="text-center py-8 text-muted-foreground">
                       Нет заданий генерации
-                    </div>
-                  )}
+                    </div>}
                 </div>
               </ScrollArea>
             </TabsContent>
@@ -404,8 +352,7 @@ export default function AdminPanel() {
             <TabsContent value="health" className="space-y-4">
               <ScrollArea className="h-[500px]">
                 <div className="space-y-3">
-                  {healthLogs.map((log) => (
-                    <Card key={log.id} className="p-4">
+                  {healthLogs.map(log => <Card key={log.id} className="p-4">
                       <div className="flex items-start justify-between">
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
@@ -416,38 +363,29 @@ export default function AdminPanel() {
                             <Badge variant="outline">
                               {log.provider}
                             </Badge>
-                            {log.model && (
-                              <Badge variant="secondary">
+                            {log.model && <Badge variant="secondary">
                                 {log.model}
-                              </Badge>
-                            )}
+                              </Badge>}
                           </div>
                           
-                          {log.response_time && (
-                            <div className="text-sm">
+                          {log.response_time && <div className="text-sm">
                               <strong>Время ответа:</strong> {log.response_time}ms
-                            </div>
-                          )}
+                            </div>}
                           
-                          {log.error_message && (
-                            <div className="text-sm text-red-600">
+                          {log.error_message && <div className="text-sm text-red-600">
                               <strong>Ошибка:</strong> {log.error_message}
-                            </div>
-                          )}
+                            </div>}
 
                           <div className="text-sm text-muted-foreground">
                             {new Date(log.checked_at).toLocaleString('ru-RU')}
                           </div>
                         </div>
                       </div>
-                    </Card>
-                  ))}
+                    </Card>)}
                   
-                  {healthLogs.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
+                  {healthLogs.length === 0 && <div className="text-center py-8 text-muted-foreground">
                       Нет логов состояния API
-                    </div>
-                  )}
+                    </div>}
                 </div>
               </ScrollArea>
             </TabsContent>
@@ -455,8 +393,7 @@ export default function AdminPanel() {
             <TabsContent value="logs" className="space-y-4">
               <ScrollArea className="h-[500px]">
                 <div className="space-y-3">
-                  {edgeLogs.map((log, index) => (
-                    <Card key={index} className="p-4">
+                  {edgeLogs.map((log, index) => <Card key={index} className="p-4">
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <Badge variant={log.level === 'error' ? 'destructive' : 'secondary'}>
@@ -475,20 +412,16 @@ export default function AdminPanel() {
                           {new Date(log.timestamp / 1000).toLocaleString('ru-RU')}
                         </div>
                       </div>
-                    </Card>
-                  ))}
+                    </Card>)}
                   
-                  {edgeLogs.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
+                  {edgeLogs.length === 0 && <div className="text-center py-8 text-muted-foreground">
                       Нет логов Edge Functions
-                    </div>
-                  )}
+                    </div>}
                 </div>
               </ScrollArea>
             </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>;
 }
