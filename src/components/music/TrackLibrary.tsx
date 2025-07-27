@@ -22,7 +22,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { useUserTracks, Track } from '@/hooks/useUserTracks';
+import { useOptimizedUserTracks } from '@/hooks/useOptimizedUserTracks';
+import { Track } from '@/hooks/useUserTracks';
 import { useToast } from '@/hooks/use-toast';
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
@@ -54,7 +55,7 @@ export default function TrackLibrary() {
   const [showAdmin, setShowAdmin] = useState(false);
   
   // Data management hooks
-  const { tracks, isLoading, error, loadTracks, deleteTrack, likeTrack, syncTrackStorage } = useUserTracks();
+  const { tracks, isLoading, error, reloadTracks, deleteTrack, likeTrack } = useOptimizedUserTracks();
   const [playerState, playerActions] = useAudioPlayer();
   const { toast } = useToast();
   
@@ -62,7 +63,7 @@ export default function TrackLibrary() {
   useRealtimeUpdates({
     onTrackUpdate: () => {
       console.log('Real-time track update detected, refreshing...');
-      loadTracks();
+      reloadTracks();
       
       toast({
         title: "Новый трек добавлен!",
@@ -71,10 +72,10 @@ export default function TrackLibrary() {
     }
   });
   
-  // Auto-refresh tracks when component mounts (without auto-sync to prevent loops)
+  // Auto-refresh tracks when component mounts
   useEffect(() => {
-    loadTracks(false); // FIXED: Explicit false to prevent auto-sync loop
-  }, [loadTracks]);
+    // Tracks are automatically loaded by React Query hook
+  }, []);
 
   // Filter tracks based on search and filters
   const filteredTracks = tracks.filter(track => {
@@ -298,22 +299,11 @@ export default function TrackLibrary() {
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => loadTracks(true)}
+                onClick={reloadTracks}
                 disabled={isLoading}
               >
                 <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
                 {isLoading ? 'Обновление...' : 'Обновить'}
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={syncTrackStorage}
-                disabled={isLoading}
-                title="Синхронизировать URL треков с хранилищем"
-              >
-                <Sparkles className="h-4 w-4 mr-1" />
-                Синхронизация
               </Button>
             </div>
           </div>
