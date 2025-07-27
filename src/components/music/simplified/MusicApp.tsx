@@ -46,7 +46,7 @@ export default function MusicApp() {
 
       {/* Main Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-        <TabsList className="grid w-full grid-cols-5 max-w-3xl mx-auto h-12">
+        <TabsList className="flex w-full max-w-4xl mx-auto h-12 gap-1">
           <TabsTrigger value="create" className="flex items-center gap-2 text-sm font-medium">
             <Music className="h-4 w-4" />
             <span className="hidden sm:inline">Создать</span>
