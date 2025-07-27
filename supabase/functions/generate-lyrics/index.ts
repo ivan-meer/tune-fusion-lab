@@ -55,19 +55,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate lyrics using Suno API - using correct endpoint
+    // Generate lyrics using Suno API with proper parameters
+    const requestBody = {
+      prompt: lyricsRequest.prompt,
+      customMode: true,
+      title: `Generated Lyrics for ${lyricsRequest.style || 'pop'}`,
+      style: lyricsRequest.style || 'pop',
+      instrumental: false, // Required parameter - we want lyrics, not instrumental
+      language: lyricsRequest.language || 'russian'
+    };
+
+    console.log('Sending request to Suno API:', requestBody);
+
     const lyricsResponse = await fetch('https://api.sunoapi.org/api/v1/generate', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        prompt: lyricsRequest.prompt,
-        type: 'lyrics',
-        style: lyricsRequest.style || 'pop',
-        language: lyricsRequest.language || 'russian'
-      })
+      body: JSON.stringify(requestBody)
     });
 
     if (!lyricsResponse.ok) {
@@ -82,15 +88,39 @@ Deno.serve(async (req) => {
     const lyricsData = await lyricsResponse.json();
     console.log('Suno lyrics response:', lyricsData);
 
-    // Extract lyrics from response
+    // Extract lyrics from response with improved handling
     let generatedLyrics = '';
-    if (lyricsData.data && lyricsData.data.text) {
-      generatedLyrics = lyricsData.data.text;
+    
+    if (lyricsData.code === 200 && lyricsData.data) {
+      // Success response - extract lyrics from various possible fields
+      if (typeof lyricsData.data === 'string') {
+        generatedLyrics = lyricsData.data;
+      } else if (lyricsData.data.text) {
+        generatedLyrics = lyricsData.data.text;
+      } else if (lyricsData.data.lyrics) {
+        generatedLyrics = lyricsData.data.lyrics;
+      } else if (lyricsData.data.content) {
+        generatedLyrics = lyricsData.data.content;
+      } else if (Array.isArray(lyricsData.data) && lyricsData.data.length > 0) {
+        // If data is an array, take the first item's text
+        const firstItem = lyricsData.data[0];
+        generatedLyrics = firstItem.text || firstItem.lyrics || firstItem.content || '';
+      }
     } else if (lyricsData.lyrics) {
+      // Direct lyrics field
       generatedLyrics = lyricsData.lyrics;
-    } else {
-      generatedLyrics = 'Generated lyrics content not available';
+    } else if (lyricsData.text) {
+      // Direct text field
+      generatedLyrics = lyricsData.text;
     }
+    
+    // Fallback if no lyrics extracted
+    if (!generatedLyrics) {
+      console.error('Failed to extract lyrics from response:', lyricsData);
+      generatedLyrics = `Generated lyrics not available. API Response: ${JSON.stringify(lyricsData)}`;
+    }
+    
+    console.log('Extracted lyrics:', generatedLyrics.substring(0, 200) + '...');
 
     // Save to database
     const { data: savedLyrics, error: saveError } = await supabase
