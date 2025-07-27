@@ -187,26 +187,61 @@ export function useMusicGeneration() {
         description: "Трек находится в процессе генерации..."
       });
 
-      // Start polling for updates with automatic cleanup
+      // Start polling for updates with automatic cleanup and stuck detection
+      let lastProgress = 0;
+      let stuckCounter = 0;
+      
       const pollInterval = setInterval(async () => {
         const shouldStop = await pollJobStatus(data.jobId);
         if (shouldStop) {
           clearInterval(pollInterval);
+          return;
+        }
+        
+        // Detect stuck progress (same progress for more than 30 seconds)
+        if (currentJob && currentJob.progress === lastProgress && currentJob.progress > 0) {
+          stuckCounter++;
+          if (stuckCounter >= 15) { // 30 seconds (15 * 2 seconds)
+            console.warn('Generation appears stuck at', currentJob.progress, '%, forcing cleanup...');
+            
+            // Try to cleanup stuck task
+            try {
+              await supabase.functions.invoke('cleanup-stuck-tasks');
+              console.log('Cleanup function called');
+            } catch (cleanupError) {
+              console.error('Cleanup failed:', cleanupError);
+            }
+            
+            // Force fail the job locally
+            setCurrentJob(prev => prev ? { ...prev, status: 'failed', progress: 0 } : null);
+            setIsGenerating(false);
+            toast({
+              title: "Генерация застряла",
+              description: "Прогресс застрял на " + currentJob.progress + "%. Попробуйте снова.",
+              variant: "destructive"
+            });
+            clearInterval(pollInterval);
+            return;
+          }
+        } else {
+          stuckCounter = 0;
+          lastProgress = currentJob?.progress || 0;
         }
       }, 2000); // Poll every 2 seconds for faster updates
 
-      // Stop polling after 5 minutes
+      // Stop polling after 10 minutes maximum
       setTimeout(() => {
         clearInterval(pollInterval);
         if (isGenerating) {
           setIsGenerating(false);
+          setCurrentJob(prev => prev ? { ...prev, status: 'failed', progress: 0 } : null);
           toast({
             title: "Тайм-аут генерации",
-            description: "Генерация заняла слишком много времени",
+            description: "Генерация превысила максимальное время ожидания (10 минут)",
             variant: "destructive"
           });
         }
-      }, 300000);
+      }, 600000); // 10 minutes total timeout
       
       return data;
       
