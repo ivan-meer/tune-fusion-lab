@@ -302,6 +302,7 @@ export type Database = {
           request_params: Json
           response_data: Json | null
           status: string
+          timeout_at: string | null
           track_id: string | null
           updated_at: string
           user_id: string
@@ -317,6 +318,7 @@ export type Database = {
           request_params: Json
           response_data?: Json | null
           status?: string
+          timeout_at?: string | null
           track_id?: string | null
           updated_at?: string
           user_id: string
@@ -332,6 +334,7 @@ export type Database = {
           request_params?: Json
           response_data?: Json | null
           status?: string
+          timeout_at?: string | null
           track_id?: string | null
           updated_at?: string
           user_id?: string
@@ -777,6 +780,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_stuck_generation_jobs: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       get_project_files: {
         Args: { project_artifact_id: string }
         Returns: {
