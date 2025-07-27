@@ -174,39 +174,43 @@ Deno.serve(async (req) => {
       console.log('Processing lyrics callback for record:', lyricsRecord.id);
       console.log('Callback status:', status, 'Data structure:', JSON.stringify(data, null, 2));
       
-      // Handle both 'complete' and 'text' callbackType for lyrics
+      // Handle lyrics callback - should only contain text, no audio
       if ((status === 'complete' || status === 'text') && data.data && data.data.length > 0) {
-        console.log('Processing complete lyrics callback');
-        console.log('Full data structure received:', JSON.stringify(data, null, 2));
+        console.log('Processing lyrics-only callback');
+        console.log('Full callback structure:', JSON.stringify(data, null, 2));
         
-        // Check if this is actually music generation (has audio_url) instead of lyrics-only
         const firstItem = data.data[0];
         console.log('First item keys:', Object.keys(firstItem));
-        console.log('Has audio_url:', !!firstItem.audio_url);
+        
+        // Verify this is lyrics-only (should NOT have audio_url)
+        if (firstItem.audio_url) {
+          console.error('ERROR: Received audio in lyrics callback! Wrong endpoint used.');
+          const { error: updateError } = await supabase
+            .from('lyrics')
+            .update({
+              content: 'Ошибка: получена музыка вместо лирики. Проверьте настройки API.',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', lyricsRecord.id);
+          return new Response(JSON.stringify({ error: 'Wrong endpoint - got music instead of lyrics' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
         
         let lyricsContent = '';
         
-        // If this has audio_url, it means music was generated instead of just lyrics
-        if (firstItem.audio_url) {
-          console.error('ERROR: Music was generated instead of lyrics-only! API endpoint may be wrong.');
-          lyricsContent = 'Ошибка: была сгенерирована музыка вместо текста лирики. Проверьте настройки API.';
+        // Extract lyrics from lyrics-only API response
+        if (firstItem.text && firstItem.text.length > 0) {
+          lyricsContent = firstItem.text;
+        } else if (firstItem.lyrics && firstItem.lyrics.length > 0) {
+          lyricsContent = firstItem.lyrics;
+        } else if (firstItem.content && firstItem.content.length > 0) {
+          lyricsContent = firstItem.content;
         } else {
-          // Try to extract lyrics from various possible fields in priority order
-          if (firstItem.text && !firstItem.text.includes('Создай профессиональную лирику')) {
-            lyricsContent = firstItem.text;
-          } else if (firstItem.lyrics) {
-            lyricsContent = firstItem.lyrics;
-          } else if (firstItem.lyric_text) {
-            lyricsContent = firstItem.lyric_text;
-          } else if (firstItem.content && !firstItem.content.includes('Создай профессиональную лирику')) {
-            lyricsContent = firstItem.content;
-          } else if (firstItem.generated_text) {
-            lyricsContent = firstItem.generated_text;
-          } else {
-            console.error('No valid lyrics content found in any expected field');
-            console.log('Available fields:', Object.keys(firstItem));
-            lyricsContent = 'Лирика сгенерирована, но текст не найден в ожидаемых полях API ответа.';
-          }
+          console.error('No lyrics content found in callback');
+          console.log('Available fields:', Object.keys(firstItem));
+          lyricsContent = 'Лирика сгенерирована, но текст не найден в callback данных.';
         }
         
         // Clean up the lyrics content if it's too long or contains generation instructions
