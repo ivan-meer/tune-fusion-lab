@@ -128,15 +128,30 @@ Deno.serve(async (req) => {
     let lyricsRecord = null;
     if (!jobs || jobs.length === 0) {
       console.log('Searching for lyrics record with taskId:', taskId);
-      const { data: lyricsData, error: lyricsError } = await supabase
+      
+      // Try different approaches to find the lyrics record
+      let { data: lyricsData, error: lyricsError } = await supabase
         .from('lyrics')
         .select('*')
-        .eq('provider_lyrics_id', taskId)
-        .single();
+        .eq('provider_lyrics_id', taskId);
       
-      if (!lyricsError && lyricsData) {
-        lyricsRecord = lyricsData;
+      console.log('Lyrics search result:', { lyricsData, lyricsError, taskId });
+      
+      if (lyricsData && lyricsData.length > 0) {
+        lyricsRecord = lyricsData[0];
         console.log('Found lyrics record:', lyricsRecord.id);
+      } else {
+        console.log('No lyrics record found, trying case-insensitive search...');
+        // Try case-insensitive search
+        ({ data: lyricsData, error: lyricsError } = await supabase
+          .from('lyrics')
+          .select('*')
+          .ilike('provider_lyrics_id', taskId));
+        
+        if (lyricsData && lyricsData.length > 0) {
+          lyricsRecord = lyricsData[0];
+          console.log('Found lyrics record with case-insensitive search:', lyricsRecord.id);
+        }
       }
     }
 
