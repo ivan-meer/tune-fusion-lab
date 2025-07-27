@@ -86,15 +86,15 @@ const response = await supabase.functions.invoke('generate-music', {
 
 #### `POST /functions/v1/generate-lyrics`
 
-Generate song lyrics using AI.
+Generate song lyrics using Suno AI.
 
 **Request Body:**
 ```typescript
 interface LyricsRequest {
   prompt: string;           // Song theme/description
-  style: string;           // Musical style
-  language: string;        // Language (default: "russian")
-  structure: string;       // Song structure (verse-chorus-verse)
+  style?: string;          // Musical style (optional)
+  language?: string;       // Language (default: "russian")
+  wait_audio?: boolean;    // Wait for audio generation (default: false)
 }
 ```
 
@@ -103,12 +103,18 @@ interface LyricsRequest {
 interface LyricsResponse {
   success: boolean;
   data: {
-    lyrics: string;        // Generated lyrics
-    title: string;         // Suggested title
-    structure: string[];   // Song sections
+    taskId: string;        // Generation task ID
+    status: 'pending';     // Initial status
+    lyricsData?: Array<{   // Available if wait_audio is true
+      text: string;        // Generated lyrics text
+      title: string;       // Suggested title
+      status: string;      // Generation status
+    }>;
   };
 }
 ```
+
+**Note:** The lyrics generation uses Suno API `/api/v1/generate` endpoint with `wait_audio: false` for async processing. Use the task ID to check status via callbacks or polling.
 
 ### Get Generation Status
 
