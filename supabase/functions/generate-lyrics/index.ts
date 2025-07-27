@@ -55,45 +55,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generate lyrics using Suno Lyrics API
+    // Generate lyrics using Suno Lyrics API - специальный endpoint для лирики
     const callbackUrl = `${supabaseUrl}/functions/v1/suno-callback`;
     
-    // Enhanced prompt for better lyrics generation
-    const enhancedPrompt = `Создай профессиональную лирику для ${lyricsRequest.style || 'pop'} песни на тему: "${lyricsRequest.prompt}". 
-      
-Требования:
-- Структура: [Verse], [Chorus], [Verse], [Chorus], [Bridge], [Chorus], [Outro]
-- Язык: ${lyricsRequest.language || 'русский'}
-- Стиль: ${lyricsRequest.style || 'pop'}
-- Настроение соответствует описанию: ${lyricsRequest.prompt}
-- Добавь теги в формате Suno AI в начале
-- Рифмы должны быть естественными и красивыми
-- Текст должен быть эмоциональным и запоминающимся
-- Используй современную поэтику
-
-Пример структуры с тегами:
-[Intro]
-[Verse]
-текст куплета...
-[Chorus]  
-текст припева...
-
-Создай полноценный текст песни с правильной структурой и тегами.`;
-    
     const requestBody = {
-      prompt: enhancedPrompt,
-      model: 'V4_5',
-      customMode: true,
-      title: `Generated Lyrics for ${lyricsRequest.style || 'pop'}`,
+      prompt: lyricsRequest.prompt,
       style: lyricsRequest.style || 'pop',
-      instrumental: false,
       language: lyricsRequest.language || 'russian',
+      structure: lyricsRequest.structure || 'verse-chorus',
       callBackUrl: callbackUrl
     };
 
     console.log('Sending request to Suno API:', requestBody);
 
-    const lyricsResponse = await fetch('https://api.sunoapi.org/api/v1/generate', {
+    const lyricsResponse = await fetch('https://api.sunoapi.org/api/v1/lyrics/generate', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
@@ -125,7 +100,7 @@ Deno.serve(async (req) => {
           user_id: user.id,
           title: `Lyrics for: ${lyricsRequest.prompt.substring(0, 50)}...`,
           content: 'Генерация текста в процессе... Ожидайте результат.',
-          prompt: enhancedPrompt,
+          prompt: lyricsRequest.prompt,
           style: lyricsRequest.style || 'pop',
           language: lyricsRequest.language || 'russian',
           provider: 'suno',

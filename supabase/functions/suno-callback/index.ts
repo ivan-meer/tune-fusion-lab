@@ -171,37 +171,31 @@ Deno.serve(async (req) => {
       if (status === 'complete' && data.data && data.data.length > 0) {
         console.log('Processing complete lyrics callback');
         
-        // For lyrics generation, the actual lyrics text should be in the first data item
-        // Sometimes Suno returns the lyrics in different fields, let's check all possibilities
+        // For lyrics generation, extract the actual lyrics text
         const firstItem = data.data[0];
         let lyricsContent = '';
         
         // Try to extract lyrics from various possible fields
-        if (firstItem.lyrics) {
-          lyricsContent = firstItem.lyrics;
-        } else if (firstItem.text) {
+        if (firstItem.text) {
           lyricsContent = firstItem.text;
+        } else if (firstItem.lyrics) {
+          lyricsContent = firstItem.lyrics;
         } else if (firstItem.content) {
           lyricsContent = firstItem.content;
         } else if (firstItem.generated_text) {
           lyricsContent = firstItem.generated_text;
         } else {
-          // If no specific lyrics field, this might be a music generation instead of lyrics
-          // Check if this is actually a music track by looking for audio_url
+          // Check if this is actually a music generation by looking for audio_url
           if (firstItem.audio_url) {
-            console.log('Detected music generation instead of lyrics, skipping lyrics update');
-            return new Response(JSON.stringify({ success: true, message: 'Music generation, not lyrics' }), {
-              status: 200,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            });
+            console.log('Detected music generation instead of lyrics - extracting prompt as lyrics');
+            lyricsContent = firstItem.prompt || 'Музыка сгенерирована, но текст лирики не получен';
+          } else {
+            lyricsContent = 'Лирика сгенерирована, но текст не получен в ожидаемом формате.';
           }
-          
-          // Fallback: use a message indicating completion
-          lyricsContent = 'Лирика сгенерирована успешно, но текст не получен в ожидаемом формате.';
         }
         
         console.log('Extracted lyrics content length:', lyricsContent.length);
-        console.log('First 200 chars:', lyricsContent.substring(0, 200));
+        console.log('Lyrics preview:', lyricsContent.substring(0, 200));
         
         const { error: updateError } = await supabase
           .from('lyrics')
@@ -234,28 +228,8 @@ Deno.serve(async (req) => {
         if (updateError) {
           console.error('Error updating lyrics with error:', updateError);
         }
-      } else if (status === 'text' && data.data) {
-        console.log('Text generation callback - processing lyrics');
-        const firstItem = data.data[0];
-        let lyricsContent = firstItem.text || firstItem.content || firstItem.lyrics || 'Лирика сгенерирована';
-        
-        console.log('Text callback - lyrics content:', lyricsContent.substring(0, 200));
-        
-        const { error: updateError } = await supabase
-          .from('lyrics')
-          .update({
-            content: lyricsContent,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', lyricsRecord.id);
-        
-        if (updateError) {
-          console.error('Error updating lyrics from text callback:', updateError);
-        } else {
-          console.log('Lyrics updated from text callback successfully');
-        }
       } else {
-        console.log('Lyrics callback received, status:', status, 'waiting for completion or different data structure');
+        console.log('Lyrics callback received, status:', status, 'waiting for completion or processing...');
       }
 
       return new Response(JSON.stringify({ success: true }), {
