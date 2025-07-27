@@ -355,14 +355,13 @@ async function generateWithSuno(
     .update({ status: 'processing', progress: 40 })
     .eq('id', jobId);
 
-  // Build official Suno API request payload
+  // Build official Suno API request payload according to API spec
   const generateRequest: any = {
     prompt: prompt,
+    model: model,
+    make_instrumental: instrumental,
     tags: style,
     title: prompt.slice(0, 80),
-    make_instrumental: instrumental,
-    model: model,
-    wait_audio: false,
     callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
   };
 
@@ -379,7 +378,7 @@ async function generateWithSuno(
   console.log('Lyrics present:', !!generateRequest.lyrics);
 
   const result = await retryApiCall(async () => {
-    const response = await fetch('https://api.sunoapi.org/api/v1/generate', {
+    const response = await fetch('https://api.sunoapi.org/api/v1/music/generate', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
