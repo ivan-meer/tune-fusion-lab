@@ -134,6 +134,8 @@ Deno.serve(async (req) => {
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+    
     // If we reach here, the API didn't return a taskId - handle error
     console.error('Unexpected Suno API response format:', lyricsData);
     return new Response(
