@@ -48,24 +48,52 @@ abstract class BaseAPIClient {
 // Mureka AI API Client
 export class MurekaAPIClient extends BaseAPIClient {
   constructor(apiKey: string) {
-    super('https://api.mureka.ai/v1', apiKey);
+    super('https://platform.mureka.ai/v1', apiKey);
   }
 
   async generate(request: MurekaRequest): Promise<MusicGenerationResult> {
     try {
-      // В реальном приложении здесь будет вызов к Mureka API
-      console.log('Generating with Mureka AI:', request);
+      console.log('🎵 Calling Mureka platform API:', request);
       
-      // Симуляция API вызова
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Правильная структура запроса для platform.mureka.ai
+      const murekaRequest = {
+        mode: request.mode || 'advanced',
+        title: request.prompt?.slice(0, 100) || 'Generated Song',
+        lyrics: request.customizations?.instrumental ? undefined : request.prompt,
+        style: request.style || 'pop',
+        duration: Math.min(request.duration || 180, 240),
+        language: request.language || 'en',
+        voice_style: request.customizations?.instrumental ? undefined : 'default',
+        instrumental: request.customizations?.instrumental || false,
+        custom_tags: [request.style || 'pop'],
+        quality: 'high',
+        output_format: 'mp3'
+      };
+
+      const response = await this.request<any>('/song/generate', {
+        method: 'POST',
+        body: JSON.stringify(murekaRequest)
+      });
+
+      console.log('📥 Mureka API response:', response);
+      
+      // Обработка асинхронного ответа
+      const taskId = response.task_id || response.id || response.data?.task_id;
+      
+      if (!taskId) {
+        throw new Error('No task ID received from Mureka API');
+      }
+
+      // Polling результата
+      const result = await this.pollGeneration(taskId);
       
       return {
-        id: `mureka_${Date.now()}`,
+        id: taskId,
         status: 'completed',
-        audioUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
+        audioUrl: result.audio_url || '',
         duration: request.duration || 180,
         metadata: {
-          title: `Mureka Generated - ${request.prompt?.slice(0, 20)}...`,
+          title: request.prompt?.slice(0, 50) || 'Generated Song',
           artist: 'Mureka AI',
           genre: request.style,
           mood: request.customizations?.mood,
@@ -76,9 +104,50 @@ export class MurekaAPIClient extends BaseAPIClient {
         }
       };
     } catch (error) {
-      console.error('Mureka API Error:', error);
+      console.error('❌ Mureka API Error:', error);
       throw error;
     }
+  }
+
+  private async pollGeneration(taskId: string, maxAttempts: number = 30): Promise<any> {
+    let attempts = 0;
+    const baseDelay = 5000;
+    
+    while (attempts < maxAttempts) {
+      try {
+        console.log(`🔄 Polling Mureka task ${taskId}, attempt ${attempts + 1}/${maxAttempts}`);
+        
+        const result = await this.request<any>(`/song/status/${taskId}`, {
+          method: 'GET'
+        });
+        
+        console.log(`📊 Mureka status:`, result);
+        
+        if (result.status === 'completed' && result.audio_url) {
+          console.log('✅ Mureka generation completed');
+          return result;
+        } else if (result.status === 'failed') {
+          throw new Error(`Mureka generation failed: ${result.error || 'Unknown error'}`);
+        }
+        
+        // Продолжаем polling с увеличивающейся задержкой
+        const delay = Math.min(baseDelay * (1 + attempts * 0.2), 15000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        attempts++;
+        
+      } catch (error) {
+        console.error(`❌ Error polling Mureka: ${error.message}`);
+        attempts++;
+        
+        if (attempts >= maxAttempts) {
+          throw new Error(`Mureka polling timeout after ${maxAttempts} attempts`);
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, baseDelay));
+      }
+    }
+    
+    throw new Error('Mureka generation timeout - no result after maximum attempts');
   }
 
   async continueTrack(trackId: string, duration: number): Promise<MusicGenerationResult> {
@@ -99,33 +168,125 @@ export class MurekaAPIClient extends BaseAPIClient {
 // Suno API Client  
 export class SunoAPIClient extends BaseAPIClient {
   constructor(apiKey: string) {
-    super('https://api.suno.ai/v1', apiKey);
+    super('https://api.sunoapi.org/api/v1', apiKey);
   }
 
   async generate(request: SunoRequest): Promise<MusicGenerationResult> {
     try {
-      console.log('Generating with Suno AI:', request);
+      console.log('🎵 Calling Suno API:', request);
       
-      // Симуляция API вызова
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Правильная структура запроса для api.sunoapi.org
+      const sunoRequest = {
+        customMode: request.customMode || true,
+        instrumental: request.makeInstrumental || false,
+        model: request.model || 'V4_5',
+        style: request.tags?.join(', ') || 'pop',
+        title: request.prompt?.slice(0, 80) || 'Generated Song'
+      };
+
+      // В кастом режиме prompt используется как лирика для вокальных треков
+      if (!sunoRequest.instrumental && request.prompt) {
+        (sunoRequest as any).prompt = request.prompt;
+      }
+
+      const response = await this.request<any>('/generate', {
+        method: 'POST',
+        body: JSON.stringify(sunoRequest)
+      });
+
+      console.log('📥 Suno API response:', response);
+      
+      // Обработка ответа Suno API
+      if (response.code !== 200) {
+        throw new Error(`Suno API error (code ${response.code}): ${response.msg || 'Unknown error'}`);
+      }
+      
+      const taskId = this.extractTaskId(response);
+      if (!taskId) {
+        throw new Error('No task ID found in Suno API response');
+      }
+
+      // Polling результата
+      const result = await this.pollGeneration(taskId);
       
       return {
-        id: `suno_${Date.now()}`,
+        id: taskId,
         status: 'completed',
-        audioUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
-        duration: 240, // Suno треки обычно длиннее
+        audioUrl: result.audioUrl || '',
+        duration: result.duration || 240,
         metadata: {
-          title: `Suno Generated - ${request.prompt?.slice(0, 20)}...`,
+          title: result.title || request.prompt?.slice(0, 50) || 'Generated Song',
           artist: 'Suno AI',
-          genre: request.tags?.[0],
+          genre: request.tags?.[0] || 'pop',
           generated_at: new Date(),
           provider: 'suno'
         }
       };
     } catch (error) {
-      console.error('Suno API Error:', error);
+      console.error('❌ Suno API Error:', error);
       throw error;
     }
+  }
+
+  private extractTaskId(response: any): string | null {
+    if (response.data) {
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        return response.data[0].taskId || response.data[0].task_id || response.data[0].id;
+      } else if (typeof response.data === 'object') {
+        return response.data.taskId || response.data.task_id || response.data.id;
+      }
+    }
+    
+    return response.taskId || response.task_id || response.id || null;
+  }
+
+  private async pollGeneration(taskId: string, maxAttempts: number = 30): Promise<any> {
+    let attempts = 0;
+    const pollInterval = 5000;
+
+    while (attempts < maxAttempts) {
+      attempts++;
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      
+      try {
+        const statusResponse = await this.request<any>(`/generate/record-info?taskId=${taskId}`, {
+          method: 'GET'
+        });
+
+        console.log(`📊 Suno poll attempt ${attempts}:`, statusResponse);
+        
+        if (statusResponse.code === 200 && statusResponse.data?.response) {
+          const response = statusResponse.data.response;
+          
+          if (response.sunoData && Array.isArray(response.sunoData) && response.sunoData.length > 0) {
+            for (const track of response.sunoData) {
+              const audioUrl = track.audioUrl || track.sourceAudioUrl;
+              if (audioUrl && audioUrl !== '') {
+                console.log('✅ Suno generation completed');
+                return {
+                  audioUrl: audioUrl,
+                  title: track.title,
+                  duration: track.duration || 240,
+                  imageUrl: track.imageUrl || track.sourceImageUrl
+                };
+              }
+            }
+          }
+          
+          if (response.status === 'FAILED') {
+            throw new Error(`Suno generation failed: ${response.errorMessage || 'Generation failed'}`);
+          }
+        }
+        
+      } catch (error) {
+        console.warn(`⚠️ Suno polling attempt ${attempts} failed:`, error.message);
+        if (attempts >= maxAttempts) {
+          throw error;
+        }
+      }
+    }
+
+    throw new Error(`Suno generation timed out after ${maxAttempts} attempts`);
   }
 
   async extendTrack(trackId: string, continueFrom: string): Promise<MusicGenerationResult> {

@@ -90,6 +90,7 @@ export interface MurekaRequest {
     key?: string;
     instruments?: string[];
     mood?: string;
+    instrumental?: boolean;
   };
 }
 

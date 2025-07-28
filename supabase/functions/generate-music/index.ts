@@ -795,6 +795,25 @@ async function retryApiCall<T>(
   throw lastError!;
 }
 
+// Функция валидации API ключей
+async function validateApiKeys() {
+  const errors = [];
+  
+  const sunoApiKey = Deno.env.get('SUNO_API_KEY');
+  const murekaApiKey = Deno.env.get('MUREKA_API_KEY');
+  
+  if (!sunoApiKey) {
+    errors.push('SUNO_API_KEY not configured');
+  }
+  
+  if (!murekaApiKey) {
+    console.warn('MUREKA_API_KEY not configured - will use Suno only');
+  }
+  
+  return { errors, hasApiKeys: !!sunoApiKey };
+}
+
+// Улучшенная функция генерации с Mureka AI
 async function generateWithMureka(
   prompt: string,
   style: string,
@@ -804,53 +823,156 @@ async function generateWithMureka(
 ) {
   const murekaApiKey = Deno.env.get('MUREKA_API_KEY');
   
-  // If no Mureka API key, fall back to Suno immediately
+  // Валидация API ключа
   if (!murekaApiKey) {
+    console.warn('No Mureka API key - falling back to Suno');
     return await generateMurekaFallback(prompt, style, duration, instrumental, lyrics, 'No Mureka API key');
   }
 
   try {
-    console.log('Generating with Mureka API...');
+    console.log('🎵 Generating with Mureka AI API...');
     
+    // Правильная структура запроса согласно документации platform.mureka.ai
     const murekaRequest = {
-      prompt: lyrics || prompt,
+      mode: 'advanced', // или 'basic' в зависимости от сложности
+      title: prompt.slice(0, 100),
+      lyrics: instrumental ? undefined : (lyrics || prompt),
       style: style,
-      duration: duration,
-      instrumental: instrumental
+      duration: Math.min(duration, 240), // Mureka лимит
+      language: 'en',
+      voice_style: instrumental ? undefined : 'default',
+      instrumental: instrumental,
+      custom_tags: [style],
+      // Дополнительные параметры для Mureka
+      quality: 'high',
+      output_format: 'mp3'
     };
 
+    console.log('📤 Mureka request:', JSON.stringify(murekaRequest, null, 2));
+
+    // Исправленный endpoint согласно документации
     const response = await retryApiCall(async () => {
-      const res = await fetch('https://api.mureka.ai/v1/generate', {
+      const res = await fetch('https://platform.mureka.ai/v1/song/generate', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${murekaApiKey}`,
           'Content-Type': 'application/json',
+          'User-Agent': 'Supabase-Functions/1.0'
         },
         body: JSON.stringify(murekaRequest),
       });
       
+      console.log(`📡 Mureka API response status: ${res.status}`);
+      
       if (!res.ok) {
         const errorText = await res.text();
-        throw new Error(`Mureka API error: ${res.status} ${errorText}`);
+        console.error('❌ Mureka API error response:', errorText);
+        
+        // Более детальная обработка ошибок
+        if (res.status === 401) {
+          throw new Error('Mureka API: Invalid API key');
+        } else if (res.status === 429) {
+          throw new Error('Mureka API: Rate limit exceeded');
+        } else if (res.status === 402) {
+          throw new Error('Mureka API: Insufficient credits');
+        } else {
+          throw new Error(`Mureka API error: ${res.status} ${errorText}`);
+        }
       }
       
       return await res.json();
-    }, 2, 1000);
+    }, 3, 2000); // Больше попыток с увеличенной задержкой
+
+    console.log('📥 Mureka API response:', JSON.stringify(response, null, 2));
+    
+    // Обработка асинхронного ответа от Mureka
+    const taskId = response.task_id || response.id || response.data?.task_id;
+    
+    if (!taskId) {
+      throw new Error('No task ID received from Mureka API');
+    }
+    
+    // Запускаем polling для получения результата
+    const result = await pollMurekaGeneration(taskId, murekaApiKey);
     
     return {
-      id: response.data?.taskId || response.data?.id || 'mureka-' + Date.now(),
+      id: taskId,
       title: prompt.slice(0, 50),
-      audioUrl: response.data?.audioUrl || '',
-      imageUrl: response.data?.imageUrl || '',
+      audioUrl: result.audio_url || '',
+      imageUrl: result.image_url || '',
       duration: duration,
       provider: 'mureka',
-      status: 'completed'
+      status: result.status || 'completed',
+      metadata: {
+        original_prompt: prompt,
+        style: style,
+        instrumental: instrumental,
+        generation_time: result.generation_time
+      }
     };
     
   } catch (murekaError) {
-    console.warn('Mureka API failed, falling back to Suno:', murekaError.message);
+    console.error('❌ Mureka API failed:', murekaError.message);
     return await generateMurekaFallback(prompt, style, duration, instrumental, lyrics, murekaError.message);
   }
+}
+
+// Функция polling для Mureka AI
+async function pollMurekaGeneration(taskId: string, apiKey: string, maxAttempts: number = 30): Promise<any> {
+  let attempts = 0;
+  const baseDelay = 5000; // 5 секунд базовая задержка
+  
+  while (attempts < maxAttempts) {
+    try {
+      console.log(`🔄 Polling Mureka task ${taskId}, attempt ${attempts + 1}/${maxAttempts}`);
+      
+      const response = await fetch(`https://platform.mureka.ai/v1/song/status/${taskId}`, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        console.warn(`⚠️ Mureka polling error: ${response.status}`);
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, baseDelay));
+        continue;
+      }
+      
+      const result = await response.json();
+      console.log(`📊 Mureka status check:`, result);
+      
+      // Проверяем статус
+      if (result.status === 'completed' && result.audio_url) {
+        console.log('✅ Mureka generation completed');
+        return result;
+      } else if (result.status === 'failed') {
+        throw new Error(`Mureka generation failed: ${result.error || 'Unknown error'}`);
+      } else if (result.status === 'processing' || result.status === 'pending') {
+        // Продолжаем polling с увеличивающейся задержкой
+        const delay = Math.min(baseDelay * (1 + attempts * 0.2), 15000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        attempts++;
+      } else {
+        console.log(`🔄 Mureka status: ${result.status}, continuing...`);
+        await new Promise(resolve => setTimeout(resolve, baseDelay));
+        attempts++;
+      }
+      
+    } catch (error) {
+      console.error(`❌ Error polling Mureka: ${error.message}`);
+      attempts++;
+      
+      if (attempts >= maxAttempts) {
+        throw new Error(`Mureka polling timeout after ${maxAttempts} attempts`);
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, baseDelay));
+    }
+  }
+  
+  throw new Error('Mureka generation timeout - no result after maximum attempts');
 }
 
 async function generateMurekaFallback(

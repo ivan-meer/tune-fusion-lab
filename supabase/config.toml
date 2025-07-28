@@ -72,3 +72,30 @@ verify_jwt = true
 
 [functions.check-credits]
 verify_jwt = true
+
+[functions.api-health-monitor]
+verify_jwt = false
+
+[functions.mureka-test]
+verify_jwt = false
+
+[functions.cleanup-stuck-tasks]
+verify_jwt = false
+
+[functions.extend-music]
+verify_jwt = true
+
+[functions.music-pipeline]
+verify_jwt = true
+
+[functions.pipeline-status]
+verify_jwt = true
+
+[functions.vocal-removal]
+verify_jwt = true
+
+[functions.wav-conversion]
+verify_jwt = false
+
+[functions.ai-prompt-generator]
+verify_jwt = true
