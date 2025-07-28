@@ -234,7 +234,21 @@ async function processGeneration(
     // Skip track creation for Suno - it's handled in pollSunoGeneration
     // Only create tracks for other providers
     if (provider !== 'suno') {
-      // Create track record
+      // Validate audio URL before creating track
+      if (!result.audioUrl || result.audioUrl.trim() === '') {
+        console.warn('⚠️ No valid audio URL - marking job as failed');
+        await supabaseAdmin
+          .from('generation_jobs')
+          .update({
+            status: 'failed',
+            progress: 0,
+            error_message: 'Generated track has no valid audio URL'
+          })
+          .eq('id', jobId);
+        return; // Exit without creating track
+      }
+
+      // Create track record only if audio URL is valid
       const { data: trackData, error: trackError } = await supabaseAdmin
         .from('tracks')
         .insert({
@@ -832,32 +846,25 @@ async function generateWithMureka(
   try {
     console.log('🎵 Generating with Mureka AI API...');
     
-    // Правильная структура запроса согласно документации platform.mureka.ai
-    const murekaRequest = {
-      mode: 'advanced', // или 'basic' в зависимости от сложности
-      title: prompt.slice(0, 100),
-      lyrics: instrumental ? undefined : (lyrics || prompt),
-      style: style,
-      duration: Math.min(duration, 240), // Mureka лимит
-      language: 'en',
-      voice_style: instrumental ? undefined : 'default',
-      instrumental: instrumental,
-      custom_tags: [style],
-      // Дополнительные параметры для Mureka
-      quality: 'high',
-      output_format: 'mp3'
+    // Корректная структура запроса согласно официальной документации Mureka API
+    const murekaRequest: any = {
+      lyrics: lyrics || prompt, // ОБЯЗАТЕЛЬНОЕ ПОЛЕ по документации
+      model: 'auto', // Используем последнюю модель
+      prompt: prompt // Для контроля генерации
     };
+
+    // Удаляем неподдерживаемые поля из старой версии
+    // mode, title, style, voice_style, custom_tags, quality, output_format не поддерживаются
 
     console.log('📤 Mureka request:', JSON.stringify(murekaRequest, null, 2));
 
-    // Исправленный endpoint согласно документации
+    // Исправленный endpoint согласно официальной документации
     const response = await retryApiCall(async () => {
       const res = await fetch('https://platform.mureka.ai/v1/song/generate', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${murekaApiKey}`,
-          'Content-Type': 'application/json',
-          'User-Agent': 'Supabase-Functions/1.0'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(murekaRequest),
       });
@@ -885,12 +892,15 @@ async function generateWithMureka(
 
     console.log('📥 Mureka API response:', JSON.stringify(response, null, 2));
     
-    // Обработка асинхронного ответа от Mureka
-    const taskId = response.task_id || response.id || response.data?.task_id;
+    // Обработка асинхронного ответа от Mureka согласно документации
+    const taskId = response.id; // По документации: object.id - Task ID
     
     if (!taskId) {
+      console.error('No task ID in response:', response);
       throw new Error('No task ID received from Mureka API');
     }
+    
+    console.log('✅ Mureka task created:', taskId);
     
     // Запускаем polling для получения результата
     const result = await pollMurekaGeneration(taskId, murekaApiKey);
@@ -898,7 +908,7 @@ async function generateWithMureka(
     return {
       id: taskId,
       title: prompt.slice(0, 50),
-      audioUrl: result.audio_url || '',
+      audioUrl: result.audio_url || result.url || '', // Поддержка разных форматов ответа
       imageUrl: result.image_url || '',
       duration: duration,
       provider: 'mureka',
@@ -926,7 +936,8 @@ async function pollMurekaGeneration(taskId: string, apiKey: string, maxAttempts:
     try {
       console.log(`🔄 Polling Mureka task ${taskId}, attempt ${attempts + 1}/${maxAttempts}`);
       
-      const response = await fetch(`https://platform.mureka.ai/v1/song/status/${taskId}`, {
+      // Правильный endpoint для получения статуса согласно документации
+      const response = await fetch(`https://platform.mureka.ai/v1/song/${taskId}`, {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
@@ -943,11 +954,11 @@ async function pollMurekaGeneration(taskId: string, apiKey: string, maxAttempts:
       const result = await response.json();
       console.log(`📊 Mureka status check:`, result);
       
-      // Проверяем статус
-      if (result.status === 'completed' && result.audio_url) {
+      // Проверяем статус согласно документации Mureka
+      if (result.status === 'completed' && (result.audio_url || result.url)) {
         console.log('✅ Mureka generation completed');
         return result;
-      } else if (result.status === 'failed') {
+      } else if (result.status === 'failed' || result.status === 'error') {
         throw new Error(`Mureka generation failed: ${result.error || 'Unknown error'}`);
       } else if (result.status === 'processing' || result.status === 'pending') {
         // Продолжаем polling с увеличивающейся задержкой
@@ -1022,10 +1033,32 @@ async function generateMurekaFallback(
       return await res.json();
     }, 2, 1000);
     
+    // Извлекаем task ID для дальнейшего polling
+    const taskId = extractTaskId(response);
+    
+    if (taskId) {
+      // Если есть task ID, запускаем polling для получения реального аудио
+      try {
+        const sunoResult = await pollSunoGeneration(taskId, null, null, lyrics);
+        return {
+          id: taskId,
+          title: prompt.slice(0, 50),
+          audioUrl: sunoResult.audioUrl || '',
+          imageUrl: sunoResult.imageUrl || '',
+          duration: duration,
+          provider: 'suno-fallback',
+          status: 'completed',
+          fallbackReason: originalError
+        };
+      } catch (pollingError) {
+        console.warn('Suno fallback polling failed:', pollingError.message);
+      }
+    }
+    
     return {
-      id: response.data?.taskId || response.data?.id || 'suno-fallback-' + Date.now(),
+      id: 'suno-fallback-' + Date.now(),
       title: prompt.slice(0, 50),
-      audioUrl: '',
+      audioUrl: '', // Пустой URL - трек недоступен
       imageUrl: '',
       duration: duration,
       provider: 'suno-fallback',

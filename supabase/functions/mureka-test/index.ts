@@ -30,28 +30,18 @@ Deno.serve(async (req) => {
     let testRequest;
     
     if (testType === 'basic') {
+      // Корректная структура согласно официальной документации Mureka API
       testRequest = {
-        mode: 'basic',
-        title: 'Test Song',
-        lyrics: 'This is a test song for API validation',
-        style: 'pop',
-        duration: 30,
-        language: 'en',
-        instrumental: false,
-        quality: 'high',
-        output_format: 'mp3'
+        lyrics: 'This is a test song for API validation\nA simple test to check the API\nEverything should work fine',
+        model: 'auto',
+        prompt: 'Create a test song about API validation'
       };
     } else {
+      // Продвинутый тест
       testRequest = {
-        mode: 'advanced',
-        title: 'Advanced Test Track',
-        style: 'electronic',
-        duration: 60,
-        language: 'en',
-        instrumental: true,
-        custom_tags: ['electronic', 'test'],
-        quality: 'high',
-        output_format: 'mp3'
+        lyrics: 'Advanced test track for validation\nElectronic vibes and testing flows\nChecking all systems go',
+        model: 'auto',
+        prompt: 'Create an electronic test track for system validation'
       };
     }
 
@@ -62,8 +52,7 @@ Deno.serve(async (req) => {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${murekaApiKey}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'Supabase-Functions/1.0'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(testRequest),
     });
