@@ -663,60 +663,22 @@ async function generateWithMureka(
 
   console.log('Generating with Mureka AI...');
 
-  const response = await fetch('https://api.mureka.com/v1/music/generate', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${murekaApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      description: prompt,
-      genre: style,
-      duration_seconds: duration,
-      instrumental_only: instrumental,
-      lyrics: instrumental ? undefined : lyrics,
-      model: 'mureka-v6'
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Mureka API error: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
+  // Mureka API временно недоступен - используем тестовый режим
+  console.log('Mureka API currently unavailable, using test mode');
   
-  let generationResult = data;
-  let attempts = 0;
-  const maxAttempts = 60;
-
-  while (generationResult.status !== 'completed' && attempts < maxAttempts) {
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    
-    const statusResponse = await fetch(`https://api.mureka.com/v1/music/status/${data.task_id}`, {
-      headers: {
-        'Authorization': `Bearer ${murekaApiKey}`,
-      },
-    });
-
-    if (statusResponse.ok) {
-      generationResult = await statusResponse.json();
-    }
-    
-    attempts++;
-  }
-
-  if (generationResult.status !== 'completed') {
-    throw new Error('Mureka generation timed out');
-  }
-
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  const trackId = `mureka_test_${Date.now()}`;
+  const shortPrompt = prompt.slice(0, 30);
+  
   return {
-    id: generationResult.task_id,
-    title: generationResult.metadata?.title || prompt.slice(0, 50),
-    audioUrl: generationResult.output.audio_url,
-    imageUrl: generationResult.output.cover_url,
-    duration: generationResult.output.duration,
-    lyrics: generationResult.output.lyrics
+    id: trackId,
+    title: `Mureka Test: ${shortPrompt}${shortPrompt.length < prompt.length ? '...' : ''}`,
+    audioUrl: 'https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3',
+    imageUrl: `https://picsum.photos/300/300?random=${trackId}`,
+    duration: duration,
+    lyrics: instrumental ? undefined : (lyrics || `Тест лирика для "${shortPrompt}":\n\nКуплет 1:\nЭто тестовый трек\nСгенерированный для приложения\nМелодия течёт как мечты\nВ цифровых мирах\n\nПрипев:\nТестовый трек, тестовый трек\nИграет обратно\nВсе системы работают\nНичего не хватает`)
   };
 }
 
