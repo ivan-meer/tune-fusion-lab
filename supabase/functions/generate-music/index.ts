@@ -349,26 +349,38 @@ async function generateWithSuno(
 
   // Build official Suno API request payload according to /api/v1/generate spec
   const generateRequest: any = {
-    prompt: prompt,
-    style: style, // Correct parameter name (not tags)
-    title: prompt.slice(0, 80),
     customMode: true, // Required for custom mode
     instrumental: instrumental, // Correct parameter name (not make_instrumental)
     model: model,
+    style: style, // Required in custom mode
+    title: prompt.slice(0, 80), // Required in custom mode, max 80 chars
     callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
   };
 
-  // Add lyrics only if they exist and are not empty string
-  if (finalLyrics && finalLyrics.trim()) {
-    generateRequest.lyrics = finalLyrics;
+  // В кастом режиме:
+  // - если instrumental=false: prompt используется как лирика
+  // - если instrumental=true: prompt игнорируется
+  if (!instrumental) {
+    if (finalLyrics && finalLyrics.trim()) {
+      // Используем сгенерированную лирику как prompt (который станет лирикой трека)
+      generateRequest.prompt = finalLyrics;
+    } else {
+      // Используем исходный промпт как лирику
+      generateRequest.prompt = prompt;
+    }
   }
+  // Для instrumental треков prompt не нужен в кастом режиме
   
-  console.log('=== CORRECTED API v1/generate REQUEST ===');
+  console.log('=== SUNO API v1/generate REQUEST ===');
   console.log(JSON.stringify(generateRequest, null, 2));
   console.log('Parameters included:', Object.keys(generateRequest));
-  console.log('instrumental type:', typeof generateRequest.instrumental, 'value:', generateRequest.instrumental);
-  console.log('customMode type:', typeof generateRequest.customMode, 'value:', generateRequest.customMode);
-  console.log('Lyrics present:', !!generateRequest.lyrics);
+  console.log('customMode:', generateRequest.customMode);
+  console.log('instrumental:', generateRequest.instrumental);
+  console.log('model:', generateRequest.model);
+  console.log('style length:', generateRequest.style?.length || 0);
+  console.log('title length:', generateRequest.title?.length || 0);
+  console.log('prompt length:', generateRequest.prompt?.length || 0);
+  console.log('Prompt content (first 100 chars):', generateRequest.prompt?.slice(0, 100) || 'N/A');
 
   const result = await retryApiCall(async () => {
     const response = await fetch('https://api.sunoapi.org/api/v1/generate', {
@@ -385,7 +397,34 @@ async function generateWithSuno(
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Suno API error response:', errorText);
-      throw new Error(`Suno API error: ${response.status} ${response.statusText}. Response: ${errorText}`);
+      
+      // Улучшенная обработка ошибок на основе документации
+      let errorMessage = `Suno API error: ${response.status}`;
+      
+      switch (response.status) {
+        case 400:
+          errorMessage += ' - Bad Request: Parameter error or content violation. Check prompt length limits and required fields.';
+          break;
+        case 401:
+          errorMessage += ' - Unauthorized: Invalid API key.';
+          break;
+        case 429:
+          errorMessage += ' - Rate Limited: Exceeded 20 requests per 10 seconds limit. Please wait before retrying.';
+          // Для rate limiting увеличиваем задержку
+          throw new Error(errorMessage + ' - Rate limited, retrying with longer delay');
+          break;
+        case 451:
+          errorMessage += ' - Download Failed: Unable to download related files.';
+          break;
+        case 500:
+          errorMessage += ' - Server Error: Try again later.';
+          break;
+        default:
+          errorMessage += ` - ${response.statusText}`;
+      }
+      
+      errorMessage += ` Response: ${errorText}`;
+      throw new Error(errorMessage);
     }
 
     return await response.json();
@@ -396,7 +435,22 @@ async function generateWithSuno(
   
   // Handle Suno API response format: {code: 200, msg: "success", data: {taskId: "..."}}
   if (result.code !== 200) {
-    throw new Error(`Suno API error: ${result.msg || result.error || 'Unknown error'}`);
+    let errorMessage = `Suno API error (code ${result.code}): ${result.msg || result.error || 'Unknown error'}`;
+    
+    // Дополнительная обработка специфичных кодов ошибок из документации
+    switch (result.code) {
+      case 400:
+        errorMessage += ' - Parameter error or content policy violation.';
+        break;
+      case 451:
+        errorMessage += ' - File download failed.';
+        break;
+      case 500:
+        errorMessage += ' - Server internal error, please retry.';
+        break;
+    }
+    
+    throw new Error(errorMessage);
   }
   
   // Extract task ID from response
@@ -724,7 +778,16 @@ async function retryApiCall<T>(
       console.warn(`API call attempt ${attempt} failed:`, error.message);
       
       if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, delayMs * attempt));
+        // Увеличиваем задержку для rate limiting
+        let retryDelay = delayMs * attempt;
+        
+        // Если rate limited, ждем дольше (минимум 10 секунд согласно документации)
+        if (error.message.includes('Rate Limited') || error.message.includes('429')) {
+          retryDelay = Math.max(10000, retryDelay * 2);
+          console.log(`Rate limited, waiting ${retryDelay}ms before retry...`);
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
       }
     }
   }
@@ -807,16 +870,16 @@ async function generateMurekaFallback(
     }
     
     const sunoRequest = {
-      prompt: prompt,
-      style: style,
-      title: prompt.slice(0, 50),
       customMode: true,
       instrumental: instrumental,
-      model: 'V3_5'
+      model: 'V3_5',
+      style: style,
+      title: prompt.slice(0, 50)
     };
     
-    if (lyrics) {
-      sunoRequest.lyrics = lyrics;
+    // В кастом режиме prompt используется как лирика если не инструментальный
+    if (!instrumental) {
+      sunoRequest.prompt = lyrics || prompt;
     }
     
     const response = await retryApiCall(async () => {
