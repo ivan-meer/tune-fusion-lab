@@ -938,7 +938,7 @@ async function createTrackRecord(track: any, finalAudioUrl: string, jobId: strin
       description: jobData.request_params?.prompt || '',
       file_url: finalAudioUrl,
       artwork_url: track.imageUrl || track.sourceImageUrl,
-      duration: track.duration || 120,
+      duration: Number(track.duration) || 120,
       provider: 'suno',
       provider_track_id: track.id,
       lyrics: finalLyrics || jobData.request_params?.lyrics || track.prompt,
