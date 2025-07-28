@@ -557,19 +557,19 @@ async function retryApiCall<T>(
 }
 
 async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: string, finalLyrics?: string) {
-  console.log('Starting enhanced polling for generation status with taskId:', taskId);
+  console.log('🔄 Starting polling for Suno generation:', taskId);
   
   const sunoApiKey = Deno.env.get('SUNO_API_KEY');
   if (!sunoApiKey) {
     throw new Error('SUNO_API_KEY not configured');
   }
 
-  let generationResult = null;
   let attempts = 0;
-  const maxAttempts = 120; // 10 minutes maximum
+  const maxAttempts = 60; // 5 minutes maximum
   const pollInterval = 5000; // 5 seconds
 
   while (attempts < maxAttempts) {
+    attempts++;
     await new Promise(resolve => setTimeout(resolve, pollInterval));
     
     try {
@@ -581,34 +581,100 @@ async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: str
         },
       });
 
-      if (statusResponse.ok) {
-        const statusData = await statusResponse.json();
-        console.log(`Poll attempt ${attempts + 1}:`, JSON.stringify(statusData, null, 2));
+      if (!statusResponse.ok) {
+        console.warn(`❌ Status check failed: ${statusResponse.status}`);
+        continue;
+      }
+
+      const statusData = await statusResponse.json();
+      console.log(`📊 Poll attempt ${attempts}/${maxAttempts}:`, {
+        code: statusData.code,
+        status: statusData.data?.response?.status,
+        dataExists: !!statusData.data?.response?.sunoData
+      });
+      
+      // Update progress in database
+      const progressPercent = 60 + Math.min(35, Math.round((attempts / maxAttempts) * 35));
+      await supabaseAdmin
+        .from('generation_jobs')
+        .update({ progress: progressPercent })
+        .eq('id', jobId);
+      
+      // Check response structure
+      if (statusData.code === 200 && statusData.data?.response) {
+        const response = statusData.data.response;
         
-        // Update job progress based on polling
-        const progressPercent = 60 + Math.min(20, (attempts / maxAttempts) * 20);
-        await supabaseAdmin
-          .from('generation_jobs')
-          .update({ progress: Math.round(progressPercent) })
-          .eq('id', jobId);
-        
-        // Handle /api/v1/generate/record-info response structure
-        if (statusData.code === 200 && statusData.data?.response) {
-          const response = statusData.data.response;
+        // Check if generation is complete
+        if (response.status === 'SUCCESS') {
+          // Handle new API structure with sunoData array
+          if (response.sunoData && Array.isArray(response.sunoData) && response.sunoData.length > 0) {
+            for (const track of response.sunoData) {
+              // Check if track has audio URL (means it's ready)
+              const audioUrl = track.audioUrl || track.sourceAudioUrl;
+              if (audioUrl) {
+                console.log('✅ Found completed track with audio:', {
+                  id: track.id,
+                  title: track.title,
+                  audioUrl: audioUrl,
+                  duration: track.duration
+                });
+                
+                // Save track to storage and create database record
+                try {
+                  const finalAudioUrl = await saveTrackToStorage(track, supabaseAdmin);
+                  const trackRecord = await createTrackRecord(track, finalAudioUrl, jobId, supabaseAdmin, finalLyrics);
+                  
+                  // Update job as completed
+                  await supabaseAdmin
+                    .from('generation_jobs')
+                    .update({
+                      status: 'completed',
+                      progress: 100,
+                      track_id: trackRecord.id,
+                      response_data: statusData.data,
+                      updated_at: new Date().toISOString()
+                    })
+                    .eq('id', jobId);
+                  
+                  console.log('🎉 Generation completed successfully! Track ID:', trackRecord.id);
+                  
+                  return {
+                    id: track.id,
+                    title: track.title,
+                    audioUrl: finalAudioUrl,
+                    imageUrl: track.imageUrl || track.sourceImageUrl,
+                    duration: track.duration || 120,
+                    lyrics: finalLyrics || track.prompt
+                  };
+                } catch (saveError) {
+                  console.error('❌ Failed to save track:', saveError);
+                  throw new Error(`Failed to save generated track: ${saveError.message}`);
+                }
+              } else {
+                console.log(`⏳ Track ${track.id} still processing (no audio URL yet)`);
+              }
+            }
+          }
           
-          // Check if generation is complete - updated for new API structure
-          if (response.status === 'SUCCESS' && response.sunoData && response.sunoData.length > 0) {
-            const track = response.sunoData[0];
-            
-            // Track is ready if it has audio URL
-            if (track.audioUrl || track.sourceAudioUrl) {
-              console.log('✅ Generation completed! Track ready with audio:', track.audioUrl || track.sourceAudioUrl);
+          // Handle legacy API structure as fallback
+          else if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+            const track = response.data[0];
+            if (track.status === 'complete' && (track.audio_url || track.audioUrl)) {
+              console.log('✅ Found completed track (legacy format)');
               
-               // Save track to storage and create database record immediately
-               const finalAudioUrl = await saveTrackToStorage(track, supabaseAdmin);
-               const trackRecord = await createTrackRecord(track, finalAudioUrl, jobId, supabaseAdmin, finalLyrics);
+              // Convert to new format and save
+              const modernTrack = {
+                id: track.id,
+                title: track.title,
+                audioUrl: track.audio_url || track.audioUrl,
+                imageUrl: track.image_url || track.imageUrl,
+                duration: track.duration,
+                prompt: track.prompt
+              };
               
-              // Update job as completed
+              const finalAudioUrl = await saveTrackToStorage(modernTrack, supabaseAdmin);
+              const trackRecord = await createTrackRecord(modernTrack, finalAudioUrl, jobId, supabaseAdmin, finalLyrics);
+              
               await supabaseAdmin
                 .from('generation_jobs')
                 .update({
@@ -620,68 +686,44 @@ async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: str
                 })
                 .eq('id', jobId);
               
-              generationResult = {
+              return {
                 id: track.id,
                 title: track.title,
-                audio_url: finalAudioUrl,
-                image_url: track.imageUrl || track.sourceImageUrl,
-                duration: track.duration,
-                lyric: finalLyrics || track.prompt,
-                status: 'complete'
+                audioUrl: finalAudioUrl,
+                imageUrl: track.image_url || track.imageUrl,
+                duration: track.duration || 120,
+                lyrics: finalLyrics || track.prompt
               };
-              break;
-            } else {
-              console.log(`Track still processing, no audio URL yet. ID: ${track.id}`);
-            }
-          }
-          
-          // Check for older API structure as fallback
-          else if (response.status === 'SUCCESS' && response.data && response.data.length > 0) {
-            const track = response.data[0];
-            
-            if (track.status === 'complete' && track.audio_url) {
-              generationResult = track;
-              break;
             }
             
             if (track.status === 'error') {
               throw new Error(`Suno generation failed: ${track.error_message || 'Unknown error'}`);
             }
-            
-            console.log(`Track status: ${track.status}, continuing to poll...`);
-          }
-          
-          // Check for failure
-          else if (response.status === 'FAILED') {
-            throw new Error(`Suno generation failed: ${response.errorMessage || 'Unknown error'}`);
           }
         }
-      } else {
-        console.warn(`Status check failed: ${statusResponse.status}`);
+        
+        // Check for explicit failure
+        else if (response.status === 'FAILED') {
+          throw new Error(`Suno generation failed: ${response.errorMessage || 'Generation failed'}`);
+        }
+        
+        // Still processing - continue polling
+        else {
+          console.log(`⏳ Generation still in progress (status: ${response.status})`);
+        }
       }
+      
     } catch (error) {
-      console.warn(`Polling attempt ${attempts + 1} failed:`, error.message);
+      console.warn(`⚠️ Polling attempt ${attempts} failed:`, error.message);
+      // Don't throw immediately - continue polling unless it's the last attempt
+      if (attempts >= maxAttempts) {
+        throw error;
+      }
     }
-    
-    attempts++;
   }
 
-  if (!generationResult) {
-    throw new Error('Suno generation timed out after 10 minutes');
-  }
-
-  if (!generationResult.audio_url) {
-    throw new Error('No audio track generated. API response: ' + JSON.stringify(generationResult));
-  }
-
-  return {
-    id: generationResult.id || taskId,
-    title: generationResult.title || 'Generated Track',
-    audioUrl: generationResult.audio_url,
-    imageUrl: generationResult.image_url,
-    duration: generationResult.duration || 120,
-    lyrics: generationResult.lyric
-  };
+  // If we get here, we've exhausted all attempts
+  throw new Error(`❌ Suno generation timed out after ${maxAttempts} attempts (${(maxAttempts * pollInterval) / 1000 / 60} minutes)`);
 }
 
 async function generateWithMureka(

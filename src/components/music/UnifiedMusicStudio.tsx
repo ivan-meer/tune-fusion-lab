@@ -27,7 +27,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   Wand2, Sparkles, Music, Shuffle, Zap, Volume2, Brain, 
   Mic, Guitar, Piano, Drum, Waves, Settings, 
-  ChevronDown, ChevronUp, Lightbulb, FileText
+  ChevronDown, ChevronUp, Lightbulb, FileText, RefreshCw
 } from 'lucide-react';
 
 type StudioMode = 'simple' | 'advanced';
@@ -684,24 +684,59 @@ export default function UnifiedMusicStudio() {
               )}
             </div>
 
-            <Button
-              onClick={handleGenerate}
-              disabled={!prompt.trim() || isGenerating}
-              size="lg"
-              className="min-w-32"
-            >
-              {isGenerating ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Создаю...
-                </>
-              ) : (
-                <>
-                  <Wand2 className="h-4 w-4 mr-2" />
-                  Создать трек
-                </>
-              )}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleGenerate}
+                disabled={!prompt.trim() || isGenerating}
+                size="lg"
+                className="min-w-32"
+              >
+                {isGenerating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Создаю...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-4 w-4 mr-2" />
+                    Создать трек
+                  </>
+                )}
+              </Button>
+              
+              <Button
+                onClick={async () => {
+                  try {
+                    toast({
+                      title: "🧹 Очистка...",
+                      description: "Очищаем зависшие задачи"
+                    });
+                    
+                    const response = await supabase.functions.invoke('cleanup-stuck-tasks');
+                    
+                    if (response.error) {
+                      throw new Error(response.error.message);
+                    }
+                    
+                    toast({
+                      title: "✅ Готово",
+                      description: `Очищено: ${response.data?.totalCleaned || 0} задач`
+                    });
+                  } catch (error) {
+                    toast({
+                      title: "❌ Ошибка",
+                      description: error.message,
+                      variant: "destructive"
+                    });
+                  }
+                }}
+                variant="outline"
+                size="lg"
+                disabled={isGenerating}
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {/* Lyrics Display */}
