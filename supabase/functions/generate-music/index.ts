@@ -204,8 +204,6 @@ async function processGeneration(
   try {
     console.log(`Processing generation job: ${jobId}`);
     
-    // НЕ обновляем прогресс здесь - делаем это только в конкретных провайдерах
-    
     let result;
     console.log('Starting generation with provider:', provider, 'model:', model);
     
@@ -498,62 +496,17 @@ async function pollSunoLyrics(taskId: string): Promise<string> {
         }
         
         if (data.data?.response?.status === 'FAILED') {
-          throw new Error('Lyrics generation failed');
+          throw new Error('Suno lyrics generation failed');
         }
       }
     } catch (error) {
-      console.warn(`Lyrics polling attempt ${attempts + 1} failed:`, error);
+      console.warn(`Lyrics polling attempt ${attempts + 1} failed:`, error.message);
     }
     
     attempts++;
   }
   
   throw new Error('Lyrics generation timed out');
-}
-
-function generateTags(style: string, instrumental: boolean): string {
-  const baseTags = style.toLowerCase();
-  const instrumentalTag = instrumental ? ', instrumental' : ', vocal';
-  const qualityTags = ', high quality, professional';
-  
-  return `${baseTags}${instrumentalTag}${qualityTags}`;
-}
-
-function extractTaskId(response: any): string | null {
-  // Handle Suno API response format: {code: 200, msg: "success", data: {taskId: "..."}}
-  if (response.data) {
-    if (Array.isArray(response.data) && response.data.length > 0) {
-      return response.data[0].taskId || response.data[0].task_id || response.data[0].id;
-    } else if (typeof response.data === 'object') {
-      return response.data.taskId || response.data.task_id || response.data.id;
-    }
-  }
-  
-  // Fallback for other formats
-  return response.taskId || response.task_id || response.id || null;
-}
-
-async function retryApiCall<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  delayMs: number = 1000
-): Promise<T> {
-  let lastError: Error;
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error as Error;
-      console.warn(`API call attempt ${attempt} failed:`, error.message);
-      
-      if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, delayMs * attempt));
-      }
-    }
-  }
-  
-  throw lastError!;
 }
 
 async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: string, finalLyrics?: string) {
@@ -611,107 +564,121 @@ async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: str
         // Check for tracks in sunoData array (regardless of status field)
         if (response.sunoData && Array.isArray(response.sunoData) && response.sunoData.length > 0) {
           for (const track of response.sunoData) {
-              // Check if track has audio URL (means it's ready)
-              const audioUrl = track.audioUrl || track.sourceAudioUrl;
-              if (audioUrl) {
-                console.log('✅ Found completed track with audio:', {
+            console.log(`🎵 Checking track:`, {
+              id: track.id,
+              status: track.status,
+              hasAudioUrl: !!(track.audioUrl || track.sourceAudioUrl),
+              audioUrl: track.audioUrl,
+              sourceAudioUrl: track.sourceAudioUrl
+            });
+            
+            // Check if track has audio URL (means it's ready)
+            const audioUrl = track.audioUrl || track.sourceAudioUrl;
+            if (audioUrl && audioUrl !== '') {
+              console.log('✅ Found completed track with audio:', {
+                id: track.id,
+                title: track.title,
+                audioUrl: audioUrl,
+                duration: track.duration
+              });
+              
+              // Save track to storage and create database record
+              try {
+                const finalAudioUrl = await saveTrackToStorage(track, supabaseAdmin);
+                const trackRecord = await createTrackRecord(track, finalAudioUrl, jobId, supabaseAdmin, finalLyrics);
+                
+                // Update job as completed
+                await supabaseAdmin
+                  .from('generation_jobs')
+                  .update({
+                    status: 'completed',
+                    progress: 100,
+                    track_id: trackRecord.id,
+                    response_data: statusData.data,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', jobId);
+                
+                console.log('🎉 Generation completed successfully! Track ID:', trackRecord.id);
+                
+                return {
                   id: track.id,
                   title: track.title,
-                  audioUrl: audioUrl,
-                  duration: track.duration
-                });
-                
-                // Save track to storage and create database record
-                try {
-                  const finalAudioUrl = await saveTrackToStorage(track, supabaseAdmin);
-                  const trackRecord = await createTrackRecord(track, finalAudioUrl, jobId, supabaseAdmin, finalLyrics);
-                  
-                  // Update job as completed
-                  await supabaseAdmin
-                    .from('generation_jobs')
-                    .update({
-                      status: 'completed',
-                      progress: 100,
-                      track_id: trackRecord.id,
-                      response_data: statusData.data,
-                      updated_at: new Date().toISOString()
-                    })
-                    .eq('id', jobId);
-                  
-                  console.log('🎉 Generation completed successfully! Track ID:', trackRecord.id);
-                  
-                  return {
-                    id: track.id,
-                    title: track.title,
-                    audioUrl: finalAudioUrl,
-                    imageUrl: track.imageUrl || track.sourceImageUrl,
-                    duration: track.duration || 120,
-                    lyrics: finalLyrics || track.prompt
-                  };
-                } catch (saveError) {
-                  console.error('❌ Failed to save track:', saveError);
-                  throw new Error(`Failed to save generated track: ${saveError.message}`);
-                }
-              } else {
-                console.log(`⏳ Track ${track.id} still processing (no audio URL yet)`);
+                  audioUrl: finalAudioUrl,
+                  imageUrl: track.imageUrl || track.sourceImageUrl,
+                  duration: track.duration || 120,
+                  lyrics: finalLyrics || track.prompt
+                };
+              } catch (saveError) {
+                console.error('❌ Failed to save track:', saveError);
+                throw new Error(`Failed to save generated track: ${saveError.message}`);
               }
-            }
-          }
-          
-          // Handle legacy API structure as fallback
-          else if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-            const track = response.data[0];
-            if (track.status === 'complete' && (track.audio_url || track.audioUrl)) {
-              console.log('✅ Found completed track (legacy format)');
-              
-              // Convert to new format and save
-              const modernTrack = {
-                id: track.id,
-                title: track.title,
-                audioUrl: track.audio_url || track.audioUrl,
-                imageUrl: track.image_url || track.imageUrl,
-                duration: track.duration,
-                prompt: track.prompt
-              };
-              
-              const finalAudioUrl = await saveTrackToStorage(modernTrack, supabaseAdmin);
-              const trackRecord = await createTrackRecord(modernTrack, finalAudioUrl, jobId, supabaseAdmin, finalLyrics);
-              
-              await supabaseAdmin
-                .from('generation_jobs')
-                .update({
-                  status: 'completed',
-                  progress: 100,
-                  track_id: trackRecord.id,
-                  response_data: statusData.data,
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', jobId);
-              
-              return {
-                id: track.id,
-                title: track.title,
-                audioUrl: finalAudioUrl,
-                imageUrl: track.image_url || track.imageUrl,
-                duration: track.duration || 120,
-                lyrics: finalLyrics || track.prompt
-              };
-            }
-            
-            if (track.status === 'error') {
-              throw new Error(`Suno generation failed: ${track.error_message || 'Unknown error'}`);
+            } else {
+              console.log(`⏳ Track ${track.id} still processing (no audio URL yet)`);
             }
           }
         }
         
-        // Check for explicit failure
+        // Check for legacy API structure as fallback
+        else if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+          const track = response.data[0];
+          console.log(`🎵 Checking legacy track:`, {
+            id: track.id,
+            status: track.status,
+            hasAudioUrl: !!(track.audio_url || track.audioUrl),
+            audioUrl: track.audio_url || track.audioUrl
+          });
+          
+          if (track.status === 'complete' && (track.audio_url || track.audioUrl)) {
+            console.log('✅ Found completed track (legacy format)');
+            
+            // Convert to new format and save
+            const modernTrack = {
+              id: track.id,
+              title: track.title,
+              audioUrl: track.audio_url || track.audioUrl,
+              imageUrl: track.image_url || track.imageUrl,
+              duration: track.duration,
+              prompt: track.prompt
+            };
+            
+            const finalAudioUrl = await saveTrackToStorage(modernTrack, supabaseAdmin);
+            const trackRecord = await createTrackRecord(modernTrack, finalAudioUrl, jobId, supabaseAdmin, finalLyrics);
+            
+            await supabaseAdmin
+              .from('generation_jobs')
+              .update({
+                status: 'completed',
+                progress: 100,
+                track_id: trackRecord.id,
+                response_data: statusData.data,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', jobId);
+            
+            return {
+              id: track.id,
+              title: track.title,
+              audioUrl: finalAudioUrl,
+              imageUrl: track.image_url || track.imageUrl,
+              duration: track.duration || 120,
+              lyrics: finalLyrics || track.prompt
+            };
+          }
+          
+          if (track.status === 'error') {
+            throw new Error(`Suno generation failed: ${track.error_message || 'Unknown error'}`);
+          }
+        }
+        
+        // Check for explicit failure in response status
         else if (response.status === 'FAILED') {
           throw new Error(`Suno generation failed: ${response.errorMessage || 'Generation failed'}`);
         }
         
-        // Still processing - continue polling
+        // Continue polling if no tracks ready yet
         else {
-          console.log(`⏳ Generation still in progress (status: ${response.status})`);
+          console.log(`⏳ Generation still in progress - no ready tracks found`);
         }
       }
       
@@ -726,6 +693,43 @@ async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: str
 
   // If we get here, we've exhausted all attempts
   throw new Error(`❌ Suno generation timed out after ${maxAttempts} attempts (${(maxAttempts * pollInterval) / 1000 / 60} minutes)`);
+}
+
+function extractTaskId(response: any): string | null {
+  // Handle Suno API response format: {code: 200, msg: "success", data: {taskId: "..."}}
+  if (response.data) {
+    if (Array.isArray(response.data) && response.data.length > 0) {
+      return response.data[0].taskId || response.data[0].task_id || response.data[0].id;
+    } else if (typeof response.data === 'object') {
+      return response.data.taskId || response.data.task_id || response.data.id;
+    }
+  }
+  
+  // Fallback for other formats
+  return response.taskId || response.task_id || response.id || null;
+}
+
+async function retryApiCall<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  delayMs: number = 1000
+): Promise<T> {
+  let lastError: Error;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      console.warn(`API call attempt ${attempt} failed:`, error.message);
+      
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, delayMs * attempt));
+      }
+    }
+  }
+  
+  throw lastError!;
 }
 
 async function generateWithMureka(
@@ -743,91 +747,75 @@ async function generateWithMureka(
   }
 
   try {
-    // Try multiple Mureka endpoints in order of preference
-    const endpoints = [
-      'https://api.mureka.ai/v1/music/generate',
-      'https://mureka.ai/api/v1/generate',
-      'https://api.mureka.co/v1/music'
-    ];
+    console.log('Generating with Mureka API...');
     
-    let lastError;
-    
-    for (const endpoint of endpoints) {
-      try {
-        const murekaRequest = {
-          text: prompt,
-          style: style,
-          duration: duration,
-          instrumental: instrumental,
-          language: 'auto'
-        };
-        
-        if (lyrics?.trim()) {
-          murekaRequest.lyrics = lyrics;
-        }
-        
-        const response = await retryApiCall(async () => {
-          const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${murekaApiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(murekaRequest),
-          });
-          
-          if (!res.ok) {
-            const errorText = await res.text();
-            throw new Error(`HTTP ${res.status}: ${errorText}`);
-          }
-          
-          return await res.json();
-        }, 2, 1000);
-        
-        // Success with this endpoint
-        return {
-          id: response.id || response.task_id || 'mureka-' + Date.now(),
-          title: response.title || prompt.slice(0, 50),
-          audioUrl: response.audio_url || response.url || '',
-          imageUrl: response.image_url || response.cover_url || '',
-          duration: response.duration || duration,
-          provider: 'mureka',
-          status: response.status || 'completed'
-        };
-        
-      } catch (endpointError) {
-        lastError = endpointError;
-        continue;
+    const murekaRequest = {
+      prompt: lyrics || prompt,
+      style: style,
+      duration: duration,
+      instrumental: instrumental
+    };
+
+    const response = await retryApiCall(async () => {
+      const res = await fetch('https://api.mureka.ai/v1/generate', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${murekaApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(murekaRequest),
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Mureka API error: ${res.status} ${errorText}`);
       }
-    }
+      
+      return await res.json();
+    }, 2, 1000);
     
-    // All endpoints failed
-    throw new Error(`All Mureka endpoints failed. Last error: ${lastError?.message}`);
+    return {
+      id: response.data?.taskId || response.data?.id || 'mureka-' + Date.now(),
+      title: prompt.slice(0, 50),
+      audioUrl: response.data?.audioUrl || '',
+      imageUrl: response.data?.imageUrl || '',
+      duration: duration,
+      provider: 'mureka',
+      status: 'completed'
+    };
     
   } catch (murekaError) {
+    console.warn('Mureka API failed, falling back to Suno:', murekaError.message);
     return await generateMurekaFallback(prompt, style, duration, instrumental, lyrics, murekaError.message);
   }
 }
 
-async function generateMurekaFallback(prompt: string, style: string, duration: number, instrumental: boolean, lyrics: string | undefined, originalError: string) {
-  const sunoApiKey = Deno.env.get('SUNO_API_KEY');
-  
-  if (!sunoApiKey) {
-    return await generateWithTest(prompt, style, duration, instrumental, lyrics);
-  }
+async function generateMurekaFallback(
+  prompt: string,
+  style: string,
+  duration: number,
+  instrumental: boolean,
+  lyrics: string | undefined,
+  originalError: string
+) {
+  console.log('Attempting Suno fallback after Mureka failure...');
   
   try {
+    const sunoApiKey = Deno.env.get('SUNO_API_KEY');
+    if (!sunoApiKey) {
+      throw new Error('No Suno API key available for fallback');
+    }
+    
     const sunoRequest = {
       prompt: prompt,
       style: style,
-      title: prompt.slice(0, 80),
+      title: prompt.slice(0, 50),
       customMode: true,
       instrumental: instrumental,
-      model: 'V4_5',
-      callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
+      model: 'V3_5'
     };
     
-    if (lyrics?.trim()) {
+    if (lyrics) {
       sunoRequest.lyrics = lyrics;
     }
     
