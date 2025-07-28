@@ -74,11 +74,20 @@ export function useMusicGeneration() {
 
         if (job.status === 'completed') {
           setIsGenerating(false);
+          console.log('✅ Generation completed! Job data:', job);
+          
+          // Force reload tracks to ensure new track appears immediately
+          try {
+            await loadTracks();
+          } catch (loadError) {
+            console.warn('Failed to reload tracks, but generation completed:', loadError);
+          }
+          
           toast({
-            title: "Генерация завершена!",
+            title: "🎵 Генерация завершена!",
             description: job.track ? `Трек "${job.track.title}" готов к прослушиванию` : "Трек готов к прослушиванию"
           });
-          await loadTracks();
+          
           return true; // Stop polling
         } else if (job.status === 'failed') {
           setIsGenerating(false);
@@ -86,7 +95,7 @@ export function useMusicGeneration() {
           const appError = handleApiError({ message: errorMessage });
           
           toast({
-            title: "Ошибка генерации",
+            title: "❌ Ошибка генерации",
             description: getUserFriendlyMessage(appError),
             variant: "destructive"
           });

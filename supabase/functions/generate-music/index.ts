@@ -233,49 +233,51 @@ async function processGeneration(
     
     console.log('Generation result:', result);
 
-    // НЕ обновляем прогресс здесь - это делается в generateWithSuno
+    // Skip track creation for Suno - it's handled in pollSunoGeneration
+    // Only create tracks for other providers
+    if (provider !== 'suno') {
+      // Create track record
+      const { data: trackData, error: trackError } = await supabaseAdmin
+        .from('tracks')
+        .insert({
+          user_id: (await supabaseAdmin.from('generation_jobs').select('user_id').eq('id', jobId).single()).data.user_id,
+          title: result.title || prompt.slice(0, 50),
+          description: prompt,
+          duration: result.duration || duration,
+          file_url: result.audioUrl,
+          artwork_url: result.imageUrl,
+          genre: style,
+          provider,
+          provider_track_id: result.id,
+          generation_params: {
+            prompt,
+            style,
+            duration,
+            instrumental,
+            lyrics
+          },
+          lyrics: result.lyrics || lyrics,
+          is_public: false
+        })
+        .select()
+        .single();
 
-    // Create track record
-    const { data: trackData, error: trackError } = await supabaseAdmin
-      .from('tracks')
-      .insert({
-        user_id: (await supabaseAdmin.from('generation_jobs').select('user_id').eq('id', jobId).single()).data.user_id,
-        title: result.title || prompt.slice(0, 50),
-        description: prompt,
-        duration: result.duration || duration,
-        file_url: result.audioUrl,
-        artwork_url: result.imageUrl,
-        genre: style,
-        provider,
-        provider_track_id: result.id,
-        generation_params: {
-          prompt,
-          style,
-          duration,
-          instrumental,
-          lyrics
-        },
-        lyrics: result.lyrics || lyrics,
-        is_public: false
-      })
-      .select()
-      .single();
+      if (trackError) {
+        console.error('Failed to create track:', trackError);
+        throw new Error('Failed to create track');
+      }
 
-    if (trackError) {
-      console.error('Failed to create track:', trackError);
-      throw new Error('Failed to create track');
+      // Update job to completed
+      await supabaseAdmin
+        .from('generation_jobs')
+        .update({
+          status: 'completed',
+          progress: 100,
+          track_id: trackData.id,
+          response_data: result
+        })
+        .eq('id', jobId);
     }
-
-    // Update job to completed
-    await supabaseAdmin
-      .from('generation_jobs')
-      .update({
-        status: 'completed',
-        progress: 100,
-        track_id: trackData.id,
-        response_data: result
-      })
-      .eq('id', jobId);
 
     console.log(`Music generation completed successfully for job ${jobId}`);
 
@@ -598,7 +600,47 @@ async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: str
         if (statusData.code === 200 && statusData.data?.response) {
           const response = statusData.data.response;
           
-          if (response.status === 'SUCCESS' && response.data && response.data.length > 0) {
+          // Check if generation is complete - updated for new API structure
+          if (response.status === 'SUCCESS' && response.sunoData && response.sunoData.length > 0) {
+            const track = response.sunoData[0];
+            
+            // Track is ready if it has audio URL
+            if (track.audioUrl || track.sourceAudioUrl) {
+              console.log('✅ Generation completed! Track ready with audio:', track.audioUrl || track.sourceAudioUrl);
+              
+              // Save track to storage and create database record immediately
+              const finalAudioUrl = await saveTrackToStorage(track, supabaseAdmin);
+              const trackRecord = await createTrackRecord(track, finalAudioUrl, jobId, supabaseAdmin);
+              
+              // Update job as completed
+              await supabaseAdmin
+                .from('generation_jobs')
+                .update({
+                  status: 'completed',
+                  progress: 100,
+                  track_id: trackRecord.id,
+                  response_data: statusData.data,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', jobId);
+              
+              generationResult = {
+                id: track.id,
+                title: track.title,
+                audio_url: finalAudioUrl,
+                image_url: track.imageUrl || track.sourceImageUrl,
+                duration: track.duration,
+                lyric: track.prompt,
+                status: 'complete'
+              };
+              break;
+            } else {
+              console.log(`Track still processing, no audio URL yet. ID: ${track.id}`);
+            }
+          }
+          
+          // Check for older API structure as fallback
+          else if (response.status === 'SUCCESS' && response.data && response.data.length > 0) {
             const track = response.data[0];
             
             if (track.status === 'complete' && track.audio_url) {
@@ -611,6 +653,11 @@ async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: str
             }
             
             console.log(`Track status: ${track.status}, continuing to poll...`);
+          }
+          
+          // Check for failure
+          else if (response.status === 'FAILED') {
+            throw new Error(`Suno generation failed: ${response.errorMessage || 'Unknown error'}`);
           }
         }
       } else {
@@ -802,4 +849,84 @@ async function generateWithTest(
     duration: duration,
     lyrics: instrumental ? undefined : (lyrics || `Test lyrics for "${shortPrompt}":\n\nVerse 1:\nThis is a test track generated\nFor your music AI application\nThe melody flows like dreams\nIn digital realms\n\nChorus:\nTest track, test track\nPlaying back\nAll systems working\nNothing lacking`)
   };
+}
+
+async function saveTrackToStorage(track: any, supabaseAdmin: any): Promise<string> {
+  let finalFileUrl = track.audioUrl || track.sourceAudioUrl;
+  
+  try {
+    // Download and save to our storage bucket
+    if (finalFileUrl && finalFileUrl.startsWith('http')) {
+      console.log('Downloading track from:', finalFileUrl);
+      const audioResponse = await fetch(finalFileUrl);
+      if (audioResponse.ok) {
+        const audioBlob = await audioResponse.arrayBuffer();
+        const fileName = `${track.id || Date.now()}.mp3`;
+        
+        const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+          .from('audio-tracks')
+          .upload(fileName, audioBlob, {
+            contentType: 'audio/mpeg',
+            duplex: 'replace'
+          });
+        
+        if (!uploadError && uploadData) {
+          const { data: { publicUrl } } = supabaseAdmin.storage
+            .from('audio-tracks')
+            .getPublicUrl(fileName);
+          finalFileUrl = publicUrl;
+          console.log('✅ Saved audio to storage:', finalFileUrl);
+        } else {
+          console.warn('⚠️ Storage upload failed:', uploadError);
+        }
+      } else {
+        console.warn('⚠️ Failed to download audio:', audioResponse.statusText);
+      }
+    }
+  } catch (storageError) {
+    console.warn('⚠️ Failed to save to storage, using original URL:', storageError);
+  }
+  
+  return finalFileUrl;
+}
+
+async function createTrackRecord(track: any, finalAudioUrl: string, jobId: string, supabaseAdmin: any) {
+  // Get job details to get user_id and request params
+  const { data: jobData } = await supabaseAdmin
+    .from('generation_jobs')
+    .select('user_id, request_params')
+    .eq('id', jobId)
+    .single();
+  
+  if (!jobData) {
+    throw new Error('Job not found for track creation');
+  }
+  
+  const { data: trackRecord, error: trackError } = await supabaseAdmin
+    .from('tracks')
+    .insert({
+      user_id: jobData.user_id,
+      title: track.title || jobData.request_params?.prompt?.slice(0, 50) || 'Generated Track',
+      description: jobData.request_params?.prompt || '',
+      file_url: finalAudioUrl,
+      artwork_url: track.imageUrl || track.sourceImageUrl,
+      duration: track.duration || 120,
+      provider: 'suno',
+      provider_track_id: track.id,
+      lyrics: jobData.request_params?.lyrics || track.prompt,
+      genre: jobData.request_params?.style || track.tags || 'pop',
+      generation_params: jobData.request_params,
+      is_public: false,
+      is_commercial: false
+    })
+    .select()
+    .single();
+
+  if (trackError) {
+    console.error('❌ Error creating track:', trackError);
+    throw new Error(`Failed to save track: ${trackError.message}`);
+  }
+
+  console.log('✅ Track record created:', trackRecord.id);
+  return trackRecord;
 }
