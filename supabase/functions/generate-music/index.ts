@@ -663,23 +663,161 @@ async function generateWithMureka(
 
   console.log('Generating with Mureka AI...');
 
-  // Mureka API временно недоступен - используем тестовый режим
-  console.log('Mureka API currently unavailable, using test mode');
+  // Проверим доступность Mureka API и используем Suno как fallback
+  console.log('Attempting Mureka API generation...');
   
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  try {
+    // Пробуем сначала Mureka (если API ключ есть)
+    const response = await fetch('https://api.mureka.ai/v1/generate', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${murekaApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: prompt,
+        style: style,
+        duration: duration,
+        instrumental: instrumental,
+        lyrics: instrumental ? undefined : lyrics
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log('Mureka response:', data);
+      
+      // Если получили task_id, ждем завершения
+      if (data.task_id) {
+        let attempts = 0;
+        const maxAttempts = 60;
+        
+        while (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          
+          const statusResponse = await fetch(`https://api.mureka.ai/v1/status/${data.task_id}`, {
+            headers: { 'Authorization': `Bearer ${murekaApiKey}` }
+          });
+          
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            if (statusData.status === 'completed' && statusData.audio_url) {
+              return {
+                id: data.task_id,
+                title: statusData.title || prompt.slice(0, 50),
+                audioUrl: statusData.audio_url,
+                imageUrl: statusData.image_url || `https://picsum.photos/300/300?random=${data.task_id}`,
+                duration: statusData.duration || duration,
+                lyrics: statusData.lyrics || lyrics
+              };
+            }
+            if (statusData.status === 'failed') {
+              throw new Error('Mureka generation failed');
+            }
+          }
+          attempts++;
+        }
+        throw new Error('Mureka generation timeout');
+      }
+    }
+  } catch (murekaError) {
+    console.warn('Mureka API failed, falling back to Suno:', murekaError.message);
+  }
   
-  const trackId = `mureka_test_${Date.now()}`;
-  const shortPrompt = prompt.slice(0, 30);
+  // Fallback на Suno API если Mureka не работает
+  console.log('Using Suno API as fallback...');
+  const sunoApiKey = Deno.env.get('SUNO_API_KEY');
   
-  return {
-    id: trackId,
-    title: `Mureka Test: ${shortPrompt}${shortPrompt.length < prompt.length ? '...' : ''}`,
-    audioUrl: 'https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3',
-    imageUrl: `https://picsum.photos/300/300?random=${trackId}`,
-    duration: duration,
-    lyrics: instrumental ? undefined : (lyrics || `Тест лирика для "${shortPrompt}":\n\nКуплет 1:\nЭто тестовый трек\nСгенерированный для приложения\nМелодия течёт как мечты\nВ цифровых мирах\n\nПрипев:\nТестовый трек, тестовый трек\nИграет обратно\nВсе системы работают\nНичего не хватает`)
+  if (!sunoApiKey) {
+    // Если нет API ключей, используем тестовый режим
+    console.log('No API keys available, using test mode');
+    const trackId = `test_${Date.now()}`;
+    return {
+      id: trackId,
+      title: `Test: ${prompt.slice(0, 30)}`,
+      audioUrl: 'https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3',
+      imageUrl: `https://picsum.photos/300/300?random=${trackId}`,
+      duration: duration,
+      lyrics: lyrics
+    };
+  }
+  
+  // Используем Suno API согласно документации
+  const sunoRequest = {
+    prompt: prompt,
+    style: style,
+    title: prompt.slice(0, 80),
+    customMode: true,
+    instrumental: instrumental,
+    model: 'V4_5',
+    lyrics: instrumental ? undefined : lyrics
   };
+  
+  const sunoResponse = await fetch('https://api.sunoapi.org/api/v1/generate', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${sunoApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(sunoRequest),
+  });
+  
+  if (!sunoResponse.ok) {
+    const errorText = await sunoResponse.text();
+    throw new Error(`Suno API error: ${sunoResponse.status} ${errorText}`);
+  }
+  
+  const sunoData = await sunoResponse.json();
+  console.log('Suno response:', sunoData);
+  
+  if (sunoData.code !== 200) {
+    throw new Error(`Suno API error: ${sunoData.msg || 'Unknown error'}`);
+  }
+  
+  // Извлекаем taskId из ответа Suno
+  const taskId = sunoData.data?.taskId || sunoData.data?.task_id || sunoData.data?.id;
+  if (!taskId) {
+    throw new Error('No task ID in Suno response');
+  }
+  
+  // Ждем завершения генерации Suno
+  let attempts = 0;
+  const maxAttempts = 120;
+  
+  while (attempts < maxAttempts) {
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    const statusResponse = await fetch(`https://api.sunoapi.org/api/v1/generate/record-info?taskId=${taskId}`, {
+      headers: { 'Authorization': `Bearer ${sunoApiKey}` }
+    });
+    
+    if (statusResponse.ok) {
+      const statusData = await statusResponse.json();
+      console.log('Suno status:', statusData);
+      
+      if (statusData.data?.response?.status === 'SUCCESS') {
+        const tracks = statusData.data.response.data || [];
+        if (tracks.length > 0) {
+          const track = tracks[0];
+          return {
+            id: track.id || taskId,
+            title: track.title || prompt.slice(0, 50),
+            audioUrl: track.audio_url,
+            imageUrl: track.image_url,
+            duration: track.duration || duration,
+            lyrics: track.lyric || lyrics
+          };
+        }
+      }
+      
+      if (statusData.data?.response?.status === 'FAILED') {
+        throw new Error('Suno generation failed');
+      }
+    }
+    attempts++;
+  }
+  
+  throw new Error('Generation timeout')
 }
 
 async function generateWithTest(
