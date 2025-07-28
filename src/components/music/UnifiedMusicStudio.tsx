@@ -314,6 +314,9 @@ export default function UnifiedMusicStudio() {
   const handleGenerate = async () => {
     if (!prompt.trim() || !user) return;
 
+    // ИСПРАВЛЕНИЕ: Правильная передача лирики
+    const finalLyrics = instrumental ? undefined : (lyrics.trim() || undefined);
+
     const request: GenerationRequest = {
       prompt: mode === 'advanced' ? buildEnhancedPrompt() : prompt,
       provider,
@@ -321,7 +324,7 @@ export default function UnifiedMusicStudio() {
       style,
       duration: duration[0],
       instrumental,
-      lyrics: instrumental ? undefined : lyrics
+      lyrics: finalLyrics
     };
 
     try {
@@ -389,7 +392,7 @@ export default function UnifiedMusicStudio() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6 px-4 sm:px-6">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -411,22 +414,26 @@ export default function UnifiedMusicStudio() {
       {/* Mode Toggle */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 flex-wrap">
             <Button
               variant={mode === 'simple' ? 'default' : 'outline'}
               onClick={() => setMode('simple')}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 text-sm sm:text-base"
+              size="sm"
             >
               <Music className="h-4 w-4" />
-              Простой режим
+              <span className="hidden sm:inline">Простой режим</span>
+              <span className="sm:hidden">Простой</span>
             </Button>
             <Button
               variant={mode === 'advanced' ? 'default' : 'outline'}
               onClick={() => setMode('advanced')}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 text-sm sm:text-base"
+              size="sm"
             >
               <Settings className="h-4 w-4" />
-              Продвинутый режим
+              <span className="hidden sm:inline">Продвинутый режим</span>
+              <span className="sm:hidden">Продвинутый</span>
             </Button>
           </div>
         </CardContent>
@@ -444,26 +451,30 @@ export default function UnifiedMusicStudio() {
         <CardContent className="space-y-6">
           {/* Prompt Section */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <Label className="text-base font-medium">Описание трека</Label>
-              <div className="flex gap-2">
+              <div className="flex gap-1 sm:gap-2 flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={generateAIPrompt}
                   disabled={isGeneratingPrompt}
+                  className="text-xs sm:text-sm"
                 >
-                  <Brain className={`h-4 w-4 mr-1 ${isGeneratingPrompt ? 'animate-pulse' : ''}`} />
-                  {isGeneratingPrompt ? 'Генерирую...' : 'ИИ Промпт'}
+                  <Brain className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 ${isGeneratingPrompt ? 'animate-pulse' : ''}`} />
+                  <span className="hidden sm:inline">{isGeneratingPrompt ? 'Генерирую...' : 'ИИ Промпт'}</span>
+                  <span className="sm:hidden">ИИ</span>
                 </Button>
                 {mode === 'simple' && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={generateRandomPrompt}
+                    className="text-xs sm:text-sm"
                   >
-                    <Shuffle className="h-4 w-4 mr-1" />
-                    Случайный
+                    <Shuffle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                    <span className="hidden sm:inline">Случайный</span>
+                    <span className="sm:hidden">Случ</span>
                   </Button>
                 )}
                 {mode === 'advanced' && (
@@ -471,9 +482,11 @@ export default function UnifiedMusicStudio() {
                     variant="outline"
                     size="sm"
                     onClick={() => setShowSuggestions(!showSuggestions)}
+                    className="text-xs sm:text-sm"
                   >
-                    <Lightbulb className="h-4 w-4 mr-1" />
-                    Идеи
+                    <Lightbulb className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                    <span className="hidden sm:inline">Идеи</span>
+                    <span className="sm:hidden">💡</span>
                   </Button>
                 )}
                 <Button
@@ -481,8 +494,9 @@ export default function UnifiedMusicStudio() {
                   size="sm"
                   onClick={enhancePrompt}
                   disabled={isEnhancing}
+                  className="text-xs sm:text-sm"
                 >
-                  <Zap className={`h-4 w-4 mr-1 ${isEnhancing ? 'animate-pulse' : ''}`} />
+                  <Zap className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 ${isEnhancing ? 'animate-pulse' : ''}`} />
                   {isEnhancing ? 'Улучшаю...' : 'Улучшить ИИ'}
                 </Button>
               </div>
@@ -493,7 +507,7 @@ export default function UnifiedMusicStudio() {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               rows={mode === 'simple' ? 2 : 3}
-              className="resize-none"
+              className="resize-none text-sm sm:text-base"
             />
 
             {/* Simple mode suggestions */}

@@ -422,12 +422,8 @@ async function generateWithSuno(
     .update({ status: 'processing', progress: 60 })
     .eq('id', jobId);
   
-  const generationResult = await pollSunoGeneration(taskId, supabaseAdmin, jobId);
-  
-  // Include generated lyrics in result
-  if (finalLyrics && !generationResult.lyrics) {
-    generationResult.lyrics = finalLyrics;
-  }
+  // ИСПРАВЛЕНИЕ: pollSunoGeneration теперь сохраняет треки в БД
+  const generationResult = await pollSunoGeneration(taskId, supabaseAdmin, jobId, finalLyrics);
   
   return generationResult;
 }
@@ -560,7 +556,7 @@ async function retryApiCall<T>(
   throw lastError!;
 }
 
-async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: string) {
+async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: string, finalLyrics?: string) {
   console.log('Starting enhanced polling for generation status with taskId:', taskId);
   
   const sunoApiKey = Deno.env.get('SUNO_API_KEY');
@@ -608,9 +604,9 @@ async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: str
             if (track.audioUrl || track.sourceAudioUrl) {
               console.log('✅ Generation completed! Track ready with audio:', track.audioUrl || track.sourceAudioUrl);
               
-              // Save track to storage and create database record immediately
-              const finalAudioUrl = await saveTrackToStorage(track, supabaseAdmin);
-              const trackRecord = await createTrackRecord(track, finalAudioUrl, jobId, supabaseAdmin);
+               // Save track to storage and create database record immediately
+               const finalAudioUrl = await saveTrackToStorage(track, supabaseAdmin);
+               const trackRecord = await createTrackRecord(track, finalAudioUrl, jobId, supabaseAdmin, finalLyrics);
               
               // Update job as completed
               await supabaseAdmin
@@ -630,7 +626,7 @@ async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: str
                 audio_url: finalAudioUrl,
                 image_url: track.imageUrl || track.sourceImageUrl,
                 duration: track.duration,
-                lyric: track.prompt,
+                lyric: finalLyrics || track.prompt,
                 status: 'complete'
               };
               break;
@@ -890,7 +886,7 @@ async function saveTrackToStorage(track: any, supabaseAdmin: any): Promise<strin
   return finalFileUrl;
 }
 
-async function createTrackRecord(track: any, finalAudioUrl: string, jobId: string, supabaseAdmin: any) {
+async function createTrackRecord(track: any, finalAudioUrl: string, jobId: string, supabaseAdmin: any, finalLyrics?: string) {
   // Get job details to get user_id and request params
   const { data: jobData } = await supabaseAdmin
     .from('generation_jobs')
@@ -913,7 +909,7 @@ async function createTrackRecord(track: any, finalAudioUrl: string, jobId: strin
       duration: track.duration || 120,
       provider: 'suno',
       provider_track_id: track.id,
-      lyrics: jobData.request_params?.lyrics || track.prompt,
+      lyrics: finalLyrics || jobData.request_params?.lyrics || track.prompt,
       genre: jobData.request_params?.style || track.tags || 'pop',
       generation_params: jobData.request_params,
       is_public: false,
