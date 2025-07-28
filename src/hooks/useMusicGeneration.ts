@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useRealtimeUpdates } from './useRealtimeUpdates';
 import { useRealtimeProgress } from './useRealtimeProgress';
 import { useUserTracks } from './useUserTracks';
+import { handleApiError, getUserFriendlyMessage, shouldRetry, getRetryDelay } from '@/utils/errorHandler';
 
 export interface GenerationRequest {
   prompt: string;
@@ -37,16 +38,20 @@ export function useMusicGeneration() {
   const { loadTracks } = useUserTracks();
 
   // Poll for job status updates using edge function
-  const pollJobStatus = useCallback(async (jobId: string) => {
+  const pollJobStatus = useCallback(async (jobId: string, attempt = 0): Promise<boolean> => {
     try {
-      // Use the dedicated edge function for getting status
       const { data, error } = await supabase.functions.invoke('get-generation-status', {
         body: { jobId }
       });
 
       if (error) {
-        console.error('Error polling job status:', error);
-        return;
+        const appError = handleApiError(error);
+        if (shouldRetry(appError) && attempt < 3) {
+          // Retry with exponential backoff
+          setTimeout(() => pollJobStatus(jobId, attempt + 1), getRetryDelay(attempt));
+          return false;
+        }
+        throw error;
       }
 
       if (data?.success && data.job) {
@@ -73,14 +78,16 @@ export function useMusicGeneration() {
             title: "Генерация завершена!",
             description: job.track ? `Трек "${job.track.title}" готов к прослушиванию` : "Трек готов к прослушиванию"
           });
-          // Reload user tracks to show the new track
           await loadTracks();
           return true; // Stop polling
         } else if (job.status === 'failed') {
           setIsGenerating(false);
+          const errorMessage = jobData.error_message || "Произошла ошибка при генерации";
+          const appError = handleApiError({ message: errorMessage });
+          
           toast({
             title: "Ошибка генерации",
-            description: jobData.error_message || "Произошла ошибка при генерации",
+            description: getUserFriendlyMessage(appError),
             variant: "destructive"
           });
           return true; // Stop polling
@@ -88,16 +95,18 @@ export function useMusicGeneration() {
       }
       return false; // Continue polling
     } catch (error) {
-      console.error('Error in pollJobStatus:', error);
+      const appError = handleApiError(error);
+      if (shouldRetry(appError) && attempt < 3) {
+        setTimeout(() => pollJobStatus(jobId, attempt + 1), getRetryDelay(attempt));
+        return false;
+      }
       return false;
     }
   }, [toast, loadTracks]);
 
-  // Setup realtime subscription for generation jobs
+    // Setup realtime subscription for generation jobs
   useEffect(() => {
     if (!currentJob?.id) return;
-
-    console.log('Setting up realtime subscription for job:', currentJob.id);
     
     const channel = supabase
       .channel('generation-updates')
@@ -110,7 +119,6 @@ export function useMusicGeneration() {
           filter: `id=eq.${currentJob.id}`
         },
         async (payload) => {
-          console.log('Realtime job update:', payload);
           const updatedJob = payload.new;
           
           if (updatedJob) {
@@ -144,7 +152,6 @@ export function useMusicGeneration() {
       .subscribe();
 
     return () => {
-      console.log('Cleaning up realtime subscription');
       supabase.removeChannel(channel);
     };
   }, [currentJob?.id, toast, pollJobStatus]);
@@ -160,12 +167,9 @@ export function useMusicGeneration() {
         throw new Error('Пользователь не аутентифицирован');
       }
       
-      console.log('Calling generate-music function...');
       const { data, error } = await supabase.functions.invoke('generate-music', {
         body: request
       });
-
-      console.log('Response:', { data, error });
 
       if (error) {
         throw new Error(error.message || 'Failed to start music generation');
@@ -198,18 +202,15 @@ export function useMusicGeneration() {
           return;
         }
         
-        // Detect stuck progress (same progress for more than 30 seconds)
+        // Detect stuck progress (same progress for more than 45 seconds)
         if (currentJob && currentJob.progress === lastProgress && currentJob.progress > 0) {
           stuckCounter++;
-          if (stuckCounter >= 15) { // 30 seconds (15 * 2 seconds)
-            console.warn('Generation appears stuck at', currentJob.progress, '%, forcing cleanup...');
-            
+          if (stuckCounter >= 22) { // 45 seconds (22 * 2 seconds)
             // Try to cleanup stuck task
             try {
               await supabase.functions.invoke('cleanup-stuck-tasks');
-              console.log('Cleanup function called');
             } catch (cleanupError) {
-              console.error('Cleanup failed:', cleanupError);
+              // Cleanup failed, but continue with local handling
             }
             
             // Force fail the job locally
@@ -217,7 +218,7 @@ export function useMusicGeneration() {
             setIsGenerating(false);
             toast({
               title: "Генерация застряла",
-              description: "Прогресс застрял на " + currentJob.progress + "%. Попробуйте снова.",
+              description: "Прогресс застрял. Попробуйте создать новый трек.",
               variant: "destructive"
             });
             clearInterval(pollInterval);
@@ -248,11 +249,13 @@ export function useMusicGeneration() {
     } catch (error) {
       setIsGenerating(false);
       setCurrentJob(null);
-      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      
+      const appError = handleApiError(error);
+      const userMessage = getUserFriendlyMessage(appError);
       
       toast({
         title: "Ошибка генерации",
-        description: errorMessage,
+        description: userMessage,
         variant: "destructive"
       });
       

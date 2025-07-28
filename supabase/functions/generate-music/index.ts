@@ -53,14 +53,11 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Starting music generation...');
-    
     // Create Supabase client with service role key
     const supabaseUrl = 'https://psqxgksushbaoisbbdir.supabase.co';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
     if (!supabaseServiceKey) {
-      console.error('SUPABASE_SERVICE_ROLE_KEY not configured');
       throw new Error('Server configuration error');
     }
     
@@ -78,11 +75,8 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(jwt);
 
     if (userError || !user) {
-      console.error('Authorization failed:', userError);
       throw new Error('Unauthorized');
     }
-
-    console.log(`Starting generation for user: ${user.id}`);
 
     const {
       prompt,
@@ -124,11 +118,8 @@ serve(async (req) => {
       .single();
 
     if (jobError) {
-      console.error('Failed to create generation job:', jobError);
       throw new Error('Failed to create generation job');
     }
-
-    console.log(`Created generation job: ${jobData.id}`);
 
     // Process generation asynchronously in background to avoid blocking
     EdgeRuntime.waitUntil(
@@ -162,15 +153,16 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in generate-music function:', error);
-
+    // Log only essential error information
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'An error occurred during music generation'
+        error: errorMessage
       }),
       {
-        status: 500,
+        status: error instanceof Error && error.message.includes('Unauthorized') ? 401 : 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
@@ -657,167 +649,133 @@ async function generateWithMureka(
   lyrics?: string
 ) {
   const murekaApiKey = Deno.env.get('MUREKA_API_KEY');
+  
+  // If no Mureka API key, fall back to Suno immediately
   if (!murekaApiKey) {
-    throw new Error('MUREKA_API_KEY not configured');
+    return await generateMurekaFallback(prompt, style, duration, instrumental, lyrics, 'No Mureka API key');
   }
 
-  console.log('Generating with Mureka AI...');
-
-  // Проверим доступность Mureka API и используем Suno как fallback
-  console.log('Attempting Mureka API generation...');
-  
   try {
-    // Пробуем сначала Mureka (если API ключ есть)
-    const response = await fetch('https://api.mureka.ai/v1/generate', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${murekaApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        prompt: prompt,
-        style: style,
-        duration: duration,
-        instrumental: instrumental,
-        lyrics: instrumental ? undefined : lyrics
-      }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      console.log('Mureka response:', data);
-      
-      // Если получили task_id, ждем завершения
-      if (data.task_id) {
-        let attempts = 0;
-        const maxAttempts = 60;
+    // Try multiple Mureka endpoints in order of preference
+    const endpoints = [
+      'https://api.mureka.ai/v1/music/generate',
+      'https://mureka.ai/api/v1/generate',
+      'https://api.mureka.co/v1/music'
+    ];
+    
+    let lastError;
+    
+    for (const endpoint of endpoints) {
+      try {
+        const murekaRequest = {
+          text: prompt,
+          style: style,
+          duration: duration,
+          instrumental: instrumental,
+          language: 'auto'
+        };
         
-        while (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          
-          const statusResponse = await fetch(`https://api.mureka.ai/v1/status/${data.task_id}`, {
-            headers: { 'Authorization': `Bearer ${murekaApiKey}` }
+        if (lyrics?.trim()) {
+          murekaRequest.lyrics = lyrics;
+        }
+        
+        const response = await retryApiCall(async () => {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${murekaApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(murekaRequest),
           });
           
-          if (statusResponse.ok) {
-            const statusData = await statusResponse.json();
-            if (statusData.status === 'completed' && statusData.audio_url) {
-              return {
-                id: data.task_id,
-                title: statusData.title || prompt.slice(0, 50),
-                audioUrl: statusData.audio_url,
-                imageUrl: statusData.image_url || `https://picsum.photos/300/300?random=${data.task_id}`,
-                duration: statusData.duration || duration,
-                lyrics: statusData.lyrics || lyrics
-              };
-            }
-            if (statusData.status === 'failed') {
-              throw new Error('Mureka generation failed');
-            }
+          if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(`HTTP ${res.status}: ${errorText}`);
           }
-          attempts++;
-        }
-        throw new Error('Mureka generation timeout');
+          
+          return await res.json();
+        }, 2, 1000);
+        
+        // Success with this endpoint
+        return {
+          id: response.id || response.task_id || 'mureka-' + Date.now(),
+          title: response.title || prompt.slice(0, 50),
+          audioUrl: response.audio_url || response.url || '',
+          imageUrl: response.image_url || response.cover_url || '',
+          duration: response.duration || duration,
+          provider: 'mureka',
+          status: response.status || 'completed'
+        };
+        
+      } catch (endpointError) {
+        lastError = endpointError;
+        continue;
       }
     }
+    
+    // All endpoints failed
+    throw new Error(`All Mureka endpoints failed. Last error: ${lastError?.message}`);
+    
   } catch (murekaError) {
-    console.warn('Mureka API failed, falling back to Suno:', murekaError.message);
+    return await generateMurekaFallback(prompt, style, duration, instrumental, lyrics, murekaError.message);
   }
-  
-  // Fallback на Suno API если Mureka не работает
-  console.log('Using Suno API as fallback...');
+}
+
+async function generateMurekaFallback(prompt: string, style: string, duration: number, instrumental: boolean, lyrics: string | undefined, originalError: string) {
   const sunoApiKey = Deno.env.get('SUNO_API_KEY');
   
   if (!sunoApiKey) {
-    // Если нет API ключей, используем тестовый режим
-    console.log('No API keys available, using test mode');
-    const trackId = `test_${Date.now()}`;
-    return {
-      id: trackId,
-      title: `Test: ${prompt.slice(0, 30)}`,
-      audioUrl: 'https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3',
-      imageUrl: `https://picsum.photos/300/300?random=${trackId}`,
-      duration: duration,
-      lyrics: lyrics
+    return await generateWithTest(prompt, style, duration, instrumental, lyrics);
+  }
+  
+  try {
+    const sunoRequest = {
+      prompt: prompt,
+      style: style,
+      title: prompt.slice(0, 80),
+      customMode: true,
+      instrumental: instrumental,
+      model: 'V4_5',
+      callBackUrl: `https://psqxgksushbaoisbbdir.supabase.co/functions/v1/suno-callback`
     };
-  }
-  
-  // Используем Suno API согласно документации
-  const sunoRequest = {
-    prompt: prompt,
-    style: style,
-    title: prompt.slice(0, 80),
-    customMode: true,
-    instrumental: instrumental,
-    model: 'V4_5',
-    lyrics: instrumental ? undefined : lyrics
-  };
-  
-  const sunoResponse = await fetch('https://api.sunoapi.org/api/v1/generate', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${sunoApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(sunoRequest),
-  });
-  
-  if (!sunoResponse.ok) {
-    const errorText = await sunoResponse.text();
-    throw new Error(`Suno API error: ${sunoResponse.status} ${errorText}`);
-  }
-  
-  const sunoData = await sunoResponse.json();
-  console.log('Suno response:', sunoData);
-  
-  if (sunoData.code !== 200) {
-    throw new Error(`Suno API error: ${sunoData.msg || 'Unknown error'}`);
-  }
-  
-  // Извлекаем taskId из ответа Suno
-  const taskId = sunoData.data?.taskId || sunoData.data?.task_id || sunoData.data?.id;
-  if (!taskId) {
-    throw new Error('No task ID in Suno response');
-  }
-  
-  // Ждем завершения генерации Suno
-  let attempts = 0;
-  const maxAttempts = 120;
-  
-  while (attempts < maxAttempts) {
-    await new Promise(resolve => setTimeout(resolve, 5000));
     
-    const statusResponse = await fetch(`https://api.sunoapi.org/api/v1/generate/record-info?taskId=${taskId}`, {
-      headers: { 'Authorization': `Bearer ${sunoApiKey}` }
-    });
-    
-    if (statusResponse.ok) {
-      const statusData = await statusResponse.json();
-      console.log('Suno status:', statusData);
-      
-      if (statusData.data?.response?.status === 'SUCCESS') {
-        const tracks = statusData.data.response.data || [];
-        if (tracks.length > 0) {
-          const track = tracks[0];
-          return {
-            id: track.id || taskId,
-            title: track.title || prompt.slice(0, 50),
-            audioUrl: track.audio_url,
-            imageUrl: track.image_url,
-            duration: track.duration || duration,
-            lyrics: track.lyric || lyrics
-          };
-        }
-      }
-      
-      if (statusData.data?.response?.status === 'FAILED') {
-        throw new Error('Suno generation failed');
-      }
+    if (lyrics?.trim()) {
+      sunoRequest.lyrics = lyrics;
     }
-    attempts++;
+    
+    const response = await retryApiCall(async () => {
+      const res = await fetch('https://api.sunoapi.org/api/v1/generate', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sunoApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(sunoRequest),
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Suno fallback failed: ${res.status} ${errorText}`);
+      }
+      
+      return await res.json();
+    }, 2, 1000);
+    
+    return {
+      id: response.data?.taskId || response.data?.id || 'suno-fallback-' + Date.now(),
+      title: prompt.slice(0, 50),
+      audioUrl: '',
+      imageUrl: '',
+      duration: duration,
+      provider: 'suno-fallback',
+      status: 'processing',
+      fallbackReason: originalError
+    };
+    
+  } catch (sunoError) {
+    throw new Error(`Both Mureka and Suno APIs failed. Mureka: ${originalError}, Suno: ${sunoError.message}`);
   }
-  
-  throw new Error('Generation timeout')
 }
 
 async function generateWithTest(
