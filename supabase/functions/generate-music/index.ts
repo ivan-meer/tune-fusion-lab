@@ -590,7 +590,8 @@ async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: str
       console.log(`📊 Poll attempt ${attempts}/${maxAttempts}:`, {
         code: statusData.code,
         status: statusData.data?.response?.status,
-        dataExists: !!statusData.data?.response?.sunoData
+        dataExists: !!statusData.data?.response?.sunoData,
+        fullResponse: JSON.stringify(statusData, null, 2)
       });
       
       // Update progress in database
@@ -605,10 +606,11 @@ async function pollSunoGeneration(taskId: string, supabaseAdmin: any, jobId: str
         const response = statusData.data.response;
         
         // Check if generation is complete
-        if (response.status === 'SUCCESS') {
-          // Handle new API structure with sunoData array
-          if (response.sunoData && Array.isArray(response.sunoData) && response.sunoData.length > 0) {
-            for (const track of response.sunoData) {
+        console.log(`🔍 Checking response status: ${response.status}, sunoData exists: ${!!response.sunoData}`);
+        
+        // Check for tracks in sunoData array (regardless of status field)
+        if (response.sunoData && Array.isArray(response.sunoData) && response.sunoData.length > 0) {
+          for (const track of response.sunoData) {
               // Check if track has audio URL (means it's ready)
               const audioUrl = track.audioUrl || track.sourceAudioUrl;
               if (audioUrl) {
