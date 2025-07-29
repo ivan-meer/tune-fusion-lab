@@ -287,9 +287,10 @@ export function useAudioPlayer(): [AudioPlayerState, AudioPlayerActions] {
    * Resume playback
    */
   const resume = useCallback(() => {
-    if (audioRef.current) {
+    if (audioRef.current && state.currentTrack && audioRef.current.src) {
       audioRef.current.play().catch(error => {
         console.error('Resume playback error:', error);
+        setState(prev => ({ ...prev, isPlaying: false }));
         toast({
           title: "Ошибка воспроизведения",
           description: "Не удалось возобновить воспроизведение",
@@ -297,7 +298,7 @@ export function useAudioPlayer(): [AudioPlayerState, AudioPlayerActions] {
         });
       });
     }
-  }, [toast]);
+  }, [state.currentTrack, toast]);
 
   /**
    * Toggle play/pause state
