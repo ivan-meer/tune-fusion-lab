@@ -371,15 +371,9 @@ export default function UnifiedMusicStudio() {
     );
   };
 
-  const handleProviderChange = (newProvider: 'mureka' | 'suno' | 'test') => {
-    setProvider(newProvider);
-    if (newProvider === 'suno') {
-      setModel('V4_5');
-    } else if (newProvider === 'mureka') {
-      setModel('mureka-v6');
-    } else {
-      setModel('test');
-    }
+  const handleProviderChange = (provider: 'mureka' | 'suno' | 'test') => {
+    // ModelSelector теперь обрабатывает изменение провайдера и модели автоматически
+    setProvider(provider);
   };
 
   if (currentJob) {
@@ -528,32 +522,18 @@ export default function UnifiedMusicStudio() {
             )}
           </div>
 
-          {/* Basic Settings */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Provider */}
-            <div className="space-y-2">
-              <Label>ИИ Провайдер</Label>
-              <Select value={provider} onValueChange={handleProviderChange}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="suno">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4" />
-                      Suno AI
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="mureka">
-                    <div className="flex items-center gap-2">
-                      <Music className="h-4 w-4" />
-                      Mureka AI
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Model and Provider Selection */}
+          <div className="space-y-4">
+            <ModelSelector
+              value={model}
+              onChange={(newModel) => setModel(newModel)}
+              provider={provider}
+              showDetails={mode === 'advanced'}
+            />
+          </div>
 
+          {/* Basic Settings */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Style */}
             <div className="space-y-2">
               <Label>Стиль</Label>
@@ -569,6 +549,9 @@ export default function UnifiedMusicStudio() {
                   <SelectItem value="classical">Классическая</SelectItem>
                   <SelectItem value="jazz">Джаз</SelectItem>
                   <SelectItem value="ambient">Эмбиент</SelectItem>
+                  <SelectItem value="metal">Метал</SelectItem>
+                  <SelectItem value="folk">Фолк</SelectItem>
+                  <SelectItem value="blues">Блюз</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -755,12 +738,6 @@ export default function UnifiedMusicStudio() {
             </div>
           )}
 
-          {/* Model Selector */}
-          <ModelSelector
-            provider={provider}
-            value={model}
-            onChange={setModel}
-          />
         </CardContent>
       </Card>
     </div>

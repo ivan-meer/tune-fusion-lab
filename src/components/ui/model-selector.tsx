@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Music, Zap, Star, Clock, DollarSign } from 'lucide-react';
 
-export type ModelType = 'V4_5' | 'V4' | 'V3_5' | 'mureka-v6' | 'test';
+export type ModelType = 'V4_5' | 'V4' | 'V3_5' | 'mureka-v7' | 'mureka-o1' | 'mureka-v6' | 'auto' | 'test';
 
 interface ModelInfo {
   id: ModelType;
@@ -16,9 +16,11 @@ interface ModelInfo {
   duration: string;
   quality: number; // 1-5 stars
   icon: any;
+  badge?: string;
 }
 
 const modelConfigs: ModelInfo[] = [
+  // Suno Models
   {
     id: 'V4_5',
     name: 'Suno V4.5',
@@ -28,7 +30,8 @@ const modelConfigs: ModelInfo[] = [
     cost: 15,
     duration: 'До 4 минут',
     quality: 5,
-    icon: Sparkles
+    icon: Sparkles,
+    badge: 'Рекомендуется'
   },
   {
     id: 'V4',
@@ -52,17 +55,56 @@ const modelConfigs: ModelInfo[] = [
     quality: 3,
     icon: Music
   },
+  
+  // Mureka Models
   {
-    id: 'mureka-v6',
-    name: 'Mureka v6',
+    id: 'mureka-v7',
+    name: 'Mureka V7',
     provider: 'Mureka AI',
-    description: 'Продвинутая модель для создания сложных композиций',
-    features: ['Сложные аранжировки', 'Профессиональный звук', 'Длинные треки'],
-    cost: 20,
+    description: 'Новейшая модель Mureka с кастомизацией тембра и улучшенным качеством',
+    features: ['Высочайшее качество', 'Кастомизация тембра', 'Продвинутая аранжировка', 'Голосовой дизайн'],
+    cost: 25,
     duration: '3-5 мин',
     quality: 5,
+    icon: Sparkles,
+    badge: 'Новинка'
+  },
+  {
+    id: 'mureka-o1',
+    name: 'Mureka O1',
+    provider: 'Mureka AI',
+    description: 'Модель с рассуждениями для сложной музыкальной композиции и BGM',
+    features: ['Музыкальные рассуждения', 'Сложная композиция', 'Многоязычность', 'BGM генерация', 'ИИ редактирование'],
+    cost: 30,
+    duration: '3-6 мин',
+    quality: 5,
+    icon: Sparkles,
+    badge: 'Продвинутая'
+  },
+  {
+    id: 'mureka-v6',
+    name: 'Mureka V6',
+    provider: 'Mureka AI',
+    description: 'Стабильная модель Mureka для качественной генерации музыки',
+    features: ['Сложные аранжировки', 'Профессиональный звук', 'Длинные треки', 'Голосовая кастомизация'],
+    cost: 20,
+    duration: '3-5 мин',
+    quality: 4,
     icon: Music
   },
+  {
+    id: 'auto',
+    name: 'Mureka Auto',
+    provider: 'Mureka AI',
+    description: 'Автоматический выбор лучшей модели Mureka для вашего запроса',
+    features: ['Автовыбор модели', 'Оптимизация', 'Простота использования', 'Универсальность'],
+    cost: 15,
+    duration: '3-5 мин',
+    quality: 4,
+    icon: Zap
+  },
+  
+  // Test Model
   {
     id: 'test',
     name: 'Тестовая модель',
@@ -87,7 +129,7 @@ export default function ModelSelector({ value, onChange, provider = 'all', showD
   const availableModels = modelConfigs.filter(model => {
     if (provider === 'all') return true;
     if (provider === 'suno') return ['V4_5', 'V4', 'V3_5'].includes(model.id);
-    if (provider === 'mureka') return model.id.startsWith('mureka-');
+    if (provider === 'mureka') return ['mureka-v7', 'mureka-o1', 'mureka-v6', 'auto'].includes(model.id);
     if (provider === 'test') return model.id === 'test';
     return true;
   });

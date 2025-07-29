@@ -172,7 +172,7 @@ serve(async (req) => {
 function getDefaultModel(provider: string): string {
   switch (provider) {
     case 'suno': return 'V4_5'; // ПРАВИЛЬНАЯ модель Suno V4.5
-    case 'mureka': return 'mureka-v6';
+    case 'mureka': return 'mureka-v7'; // По умолчанию новейшая модель
     case 'test': return 'test';
     default: return 'V4_5';
   }
@@ -221,7 +221,7 @@ async function processGeneration(
       );
     } else if (provider === 'mureka') {
       console.log('Calling generateWithMureka...');
-      result = await generateWithMureka(prompt, style, duration, instrumental, lyrics);
+      result = await generateWithMureka(prompt, style, duration, instrumental, lyrics, model);
     } else if (provider === 'test') {
       console.log('Calling generateWithTest...');
       result = await generateWithTest(prompt, style, duration, instrumental, lyrics);
@@ -851,7 +851,8 @@ async function generateWithMureka(
   style: string,
   duration: number,
   instrumental: boolean,
-  lyrics?: string
+  lyrics?: string,
+  model?: string
 ) {
   const murekaApiKey = Deno.env.get('MUREKA_API_KEY');
   
@@ -863,13 +864,27 @@ async function generateWithMureka(
 
   try {
     console.log('🎵 Generating with Mureka AI API...');
+    console.log('🔧 Using model:', model || 'auto');
     
     // Корректная структура запроса согласно официальной документации Mureka API
     const murekaRequest: any = {
       lyrics: lyrics || prompt, // ОБЯЗАТЕЛЬНОЕ ПОЛЕ по документации
-      model: 'auto', // Используем последнюю модель
+      model: model || 'auto', // Поддержка всех моделей: auto, mureka-v6, mureka-v7, mureka-o1
       prompt: prompt // Для контроля генерации
     };
+
+    // Добавляем дополнительные параметры для продвинутых моделей
+    if (model === 'mureka-o1') {
+      // O1 модель поддерживает музыкальные рассуждения и BGM генерацию
+      murekaRequest.use_reasoning = true;
+      murekaRequest.enhance_composition = true;
+    }
+    
+    if (model === 'mureka-v7') {
+      // V7 модель поддерживает кастомизацию тембра
+      murekaRequest.enable_voice_design = true;
+      murekaRequest.enhance_quality = true;
+    }
 
     // Удаляем неподдерживаемые поля из старой версии
     // mode, title, style, voice_style, custom_tags, quality, output_format не поддерживаются
