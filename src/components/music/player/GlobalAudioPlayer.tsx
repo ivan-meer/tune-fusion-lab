@@ -328,8 +328,17 @@ export default function GlobalAudioPlayer() {
   const [playerState, playerActions] = useAudioPlayer();
   const [isExpanded, setIsExpanded] = useState(false);
   
+  // Debug logging
+  console.log('GlobalAudioPlayer render:', {
+    currentTrack: playerState.currentTrack,
+    isPlaying: playerState.isPlaying,
+    playlist: playerState.playlist,
+    playerState
+  });
+  
   // Don't render if no current track
   if (!playerState.currentTrack) {
+    console.log('❌ GlobalAudioPlayer not rendering - no currentTrack');
     return null;
   }
 
