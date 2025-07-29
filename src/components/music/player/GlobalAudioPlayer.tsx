@@ -329,35 +329,21 @@ export default function GlobalAudioPlayer() {
   const [isExpanded, setIsExpanded] = useState(false);
   
   // Debug logging
-  console.log('GlobalAudioPlayer render:', {
+  console.log('🎵 GlobalAudioPlayer render:', {
     currentTrack: playerState.currentTrack,
     isPlaying: playerState.isPlaying,
-    playlist: playerState.playlist,
-    duration: playerState.duration,
+    hasPlaylist: playerState.playlist.length > 0,
     currentTime: playerState.currentTime,
-    isLoading: playerState.isLoading,
-    playerState
+    duration: playerState.duration
   });
   
-  // Show player if we have a track OR if audio is playing/loading
-  // This ensures the player is visible even if currentTrack is temporarily null
-  const shouldShowPlayer = playerState.currentTrack || 
-                          playerState.isPlaying || 
-                          playerState.isLoading ||
-                          playerState.duration > 0 ||
-                          playerState.currentTime > 0;
-  
-  if (!shouldShowPlayer) {
-    console.log('❌ GlobalAudioPlayer not rendering - no valid state');
-    return null;
-  }
-
-  // Use a fallback track info if currentTrack is null but we're playing
+  // Always show player - simplified logic
+  // The player manages its own empty states
   const displayTrack = playerState.currentTrack || {
-    id: 'unknown',
-    title: 'Загрузка...',
+    id: 'placeholder',
+    title: 'AI Music Studio',
     file_url: '',
-    provider: 'unknown'
+    provider: 'system'
   };
 
   // Determine control availability
