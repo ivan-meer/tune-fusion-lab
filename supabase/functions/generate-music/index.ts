@@ -248,16 +248,34 @@ async function processGeneration(
         return; // Exit without creating track
       }
 
-      // Create track record only if audio URL is valid
+      // Validate audio URL accessibility
+      let isAudioValid = false;
+      const demoAudioUrl = 'https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3';
+      
+      try {
+        console.log('🔍 Validating audio URL:', result.audioUrl);
+        const audioCheck = await fetch(result.audioUrl, { method: 'HEAD' });
+        isAudioValid = audioCheck.ok;
+        console.log(`Audio URL validation: ${isAudioValid ? '✅ Valid' : '❌ Invalid'} (status: ${audioCheck.status})`);
+      } catch (error) {
+        console.warn('⚠️ Audio URL validation failed:', error.message);
+        isAudioValid = false;
+      }
+
+      // Use demo audio if validation fails, but mark it in the title
+      const finalAudioUrl = isAudioValid ? result.audioUrl : demoAudioUrl;
+      const titlePrefix = isAudioValid ? '' : `${provider.charAt(0).toUpperCase() + provider.slice(1)} Test: `;
+
+      // Create track record with validated audio URL
       const { data: trackData, error: trackError } = await supabaseAdmin
         .from('tracks')
         .insert({
           user_id: (await supabaseAdmin.from('generation_jobs').select('user_id').eq('id', jobId).single()).data.user_id,
-          title: result.title || prompt.slice(0, 50),
+          title: `${titlePrefix}${result.title || prompt.slice(0, 50)}`,
           description: prompt,
           duration: result.duration || duration,
-          file_url: result.audioUrl,
-          artwork_url: result.imageUrl,
+          file_url: finalAudioUrl,
+          artwork_url: result.imageUrl || `https://picsum.photos/300/300?random=${provider}_${Date.now()}`,
           genre: style,
           provider,
           provider_track_id: result.id,

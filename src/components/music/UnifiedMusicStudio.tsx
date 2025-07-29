@@ -24,6 +24,7 @@ import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import GenerationProgress from './GenerationProgress';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { getGenerationStatusText } from '@/hooks/useGenerationStatusText';
 import { 
   Wand2, Sparkles, Music, Shuffle, Zap, Volume2, Brain, 
   Mic, Guitar, Piano, Drum, Waves, Settings, 
@@ -387,6 +388,7 @@ export default function UnifiedMusicStudio() {
         job={currentJob}
         onReset={resetGeneration}
         onRetry={currentJob.status === 'failed' ? handleGenerate : undefined}
+        statusText={getGenerationStatusText(currentJob)}
       />
     );
   }

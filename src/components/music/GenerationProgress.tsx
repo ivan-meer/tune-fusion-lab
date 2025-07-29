@@ -23,6 +23,7 @@ interface GenerationProgressProps {
   job: GenerationJob | EnhancedGenerationJob;
   onReset: () => void;
   onRetry?: () => void;
+  statusText?: string;
 }
 
 const statusConfig = {
@@ -56,7 +57,7 @@ const statusConfig = {
   }
 };
 
-export default function GenerationProgress({ job, onReset, onRetry }: GenerationProgressProps) {
+export default function GenerationProgress({ job, onReset, onRetry, statusText }: GenerationProgressProps) {
   const [animateProgress, setAnimateProgress] = useState(false);
   const [playerState, playerActions] = useAudioPlayer();
   const config = statusConfig[job.status];
@@ -157,11 +158,17 @@ export default function GenerationProgress({ job, onReset, onRetry }: Generation
 
         {/* Status Message */}
         <div className="text-sm text-muted-foreground">
-          {job.status === 'pending' && (
-            <p>Задача поставлена в очередь и ожидает обработки...</p>
-          )}
-          {job.status === 'processing' && (
-            <p>ИИ создает уникальную композицию на основе вашего запроса...</p>
+          {statusText ? (
+            <p className="font-medium text-blue-600">{statusText}</p>
+          ) : (
+            <>
+              {job.status === 'pending' && (
+                <p>Задача поставлена в очередь и ожидает обработки...</p>
+              )}
+              {job.status === 'processing' && (
+                <p>ИИ создает уникальную композицию на основе вашего запроса...</p>
+              )}
+            </>
           )}
           {job.status === 'completed' && job.track && (
             <div className="space-y-3">
