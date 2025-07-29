@@ -330,29 +330,24 @@ export default function GlobalAudioPlayer() {
   const [playerState, playerActions] = useAudioPlayer();
   const [isExpanded, setIsExpanded] = useState(false);
   
-  // Debug logging
-  console.log('🎵 GlobalAudioPlayer render:', {
-    currentTrack: playerState.currentTrack,
-    isPlaying: playerState.isPlaying,
-    hasPlaylist: playerState.playlist.length > 0,
-    currentTime: playerState.currentTime,
-    duration: playerState.duration
-  });
-  
-  // Always show player - simplified logic
-  // The player manages its own empty states
-  const displayTrack = playerState.currentTrack || {
-    id: 'placeholder',
-    title: 'AI Music Studio',
-    file_url: '',
-    provider: 'system'
-  };
-
   // Enhanced logic for determining if player has active audio
   const hasRealTrack = playerState.currentTrack !== null || 
                        playerState.isPlaying || 
                        playerState.currentTime > 0 ||
                        playerState.duration > 0;
+
+  // Only show player when there's an active track or audio
+  if (!hasRealTrack) {
+    return null;
+  }
+
+  // Display track info
+  const displayTrack = playerState.currentTrack || {
+    id: 'loading',
+    title: playerState.isLoading ? 'Загрузка...' : 'Неизвестный трек',
+    file_url: '',
+    provider: 'system'
+  };
   
   const canGoPrevious = hasRealTrack && (playerState.currentIndex > 0 || playerState.repeatMode === 'all');
   const canGoNext = hasRealTrack && (playerState.currentIndex < playerState.playlist.length - 1 || 
