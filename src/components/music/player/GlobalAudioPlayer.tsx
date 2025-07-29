@@ -207,6 +207,7 @@ interface PlaybackControlsProps {
   isLoading: boolean;
   canGoPrevious: boolean;
   canGoNext: boolean;
+  hasRealTrack: boolean;
   onPrevious: () => void;
   onTogglePlayPause: () => void;
   onNext: () => void;
@@ -218,6 +219,7 @@ function PlaybackControls({
   isLoading, 
   canGoPrevious, 
   canGoNext, 
+  hasRealTrack,
   onPrevious, 
   onTogglePlayPause, 
   onNext,
@@ -240,7 +242,7 @@ function PlaybackControls({
         variant="default"
         size="sm"
         onClick={onTogglePlayPause}
-        disabled={isLoading}
+        disabled={isLoading || !hasRealTrack}
         className="p-3"
         aria-label={isPlaying ? "Пауза" : "Воспроизведение"}
       >
@@ -346,11 +348,12 @@ export default function GlobalAudioPlayer() {
     provider: 'system'
   };
 
-  // Determine control availability
-  const canGoPrevious = playerState.currentIndex > 0 || playerState.repeatMode === 'all';
-  const canGoNext = playerState.currentIndex < playerState.playlist.length - 1 || 
+  // Determine control availability - disable if no real track is loaded
+  const hasRealTrack = playerState.currentTrack !== null;
+  const canGoPrevious = hasRealTrack && (playerState.currentIndex > 0 || playerState.repeatMode === 'all');
+  const canGoNext = hasRealTrack && (playerState.currentIndex < playerState.playlist.length - 1 || 
                     playerState.repeatMode === 'all' || 
-                    playerState.repeatMode === 'one';
+                    playerState.repeatMode === 'one');
 
   /**
    * Handle repeat mode cycling
@@ -397,6 +400,7 @@ export default function GlobalAudioPlayer() {
                   isLoading={playerState.isLoading}
                   canGoPrevious={canGoPrevious}
                   canGoNext={canGoNext}
+                  hasRealTrack={hasRealTrack}
                   onPrevious={playerActions.previousTrack}
                   onTogglePlayPause={playerActions.togglePlayPause}
                   onNext={playerActions.nextTrack}
@@ -441,6 +445,7 @@ export default function GlobalAudioPlayer() {
                   isLoading={playerState.isLoading}
                   canGoPrevious={canGoPrevious}
                   canGoNext={canGoNext}
+                  hasRealTrack={hasRealTrack}
                   onPrevious={playerActions.previousTrack}
                   onTogglePlayPause={playerActions.togglePlayPause}
                   onNext={playerActions.nextTrack}
