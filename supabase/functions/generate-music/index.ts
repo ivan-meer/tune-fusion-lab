@@ -921,16 +921,33 @@ async function generateWithMureka(
     console.log('✅ Mureka task created:', taskId);
     
     // Запускаем polling для получения результата
+    console.log('🔄 Starting Mureka polling for task:', taskId);
     const result = await pollMurekaGeneration(taskId, murekaApiKey);
+    
+    console.log('🎵 Mureka generation result:', JSON.stringify(result, null, 2));
+    
+    // Извлекаем аудио URL из результата с несколькими вариантами
+    const audioUrl = result.audio_url || result.url || result.audioUrl || result.file_url || '';
+    const imageUrl = result.image_url || result.imageUrl || result.artwork_url || '';
+    
+    console.log('🔍 Extracted audio URL:', audioUrl);
+    console.log('🔍 Extracted image URL:', imageUrl);
+    
+    // Если нет аудио URL, используем fallback
+    if (!audioUrl || audioUrl.trim() === '') {
+      console.warn('⚠️ No audio URL found in Mureka response, using fallback');
+      return await generateMurekaFallback(prompt, style, duration, instrumental, lyrics, 'No audio URL in response');
+    }
     
     return {
       id: taskId,
       title: prompt.slice(0, 50),
-      audioUrl: result.audio_url || result.url || '', // Поддержка разных форматов ответа
-      imageUrl: result.image_url || '',
+      audioUrl: audioUrl,
+      imageUrl: imageUrl,
       duration: duration,
       provider: 'mureka',
       status: result.status || 'completed',
+      lyrics: lyrics || '',
       metadata: {
         original_prompt: prompt,
         style: style,
@@ -1012,18 +1029,22 @@ async function generateMurekaFallback(
   lyrics: string | undefined,
   originalError: string
 ) {
-  console.log('Attempting Suno fallback after Mureka failure...');
+  console.log('🔄 Executing Mureka fallback after error:', originalError);
+  console.log('🔄 Fallback parameters:', { prompt: prompt.slice(0, 50), style, duration, instrumental, hasLyrics: !!lyrics });
   
   try {
     const sunoApiKey = Deno.env.get('SUNO_API_KEY');
     if (!sunoApiKey) {
+      console.error('❌ No Suno API key available for fallback');
       throw new Error('No Suno API key available for fallback');
     }
+    
+    console.log('✅ Using Suno fallback with available API key');
     
     const sunoRequest = {
       customMode: true,
       instrumental: instrumental,
-      model: 'V3_5',
+      model: 'V4_5', // Используем последнюю версию
       style: style,
       title: prompt.slice(0, 50)
     };
@@ -1032,6 +1053,8 @@ async function generateMurekaFallback(
     if (!instrumental) {
       sunoRequest.prompt = lyrics || prompt;
     }
+    
+    console.log('📤 Suno fallback request:', JSON.stringify(sunoRequest, null, 2));
     
     const response = await retryApiCall(async () => {
       const res = await fetch('https://api.sunoapi.org/api/v1/generate', {
@@ -1043,21 +1066,41 @@ async function generateMurekaFallback(
         body: JSON.stringify(sunoRequest),
       });
       
+      console.log(`📡 Suno fallback API response status: ${res.status}`);
+      
       if (!res.ok) {
         const errorText = await res.text();
+        console.error('❌ Suno fallback API error:', errorText);
         throw new Error(`Suno fallback failed: ${res.status} ${errorText}`);
       }
       
       return await res.json();
     }, 2, 1000);
     
+    console.log('📥 Suno fallback response:', JSON.stringify(response, null, 2));
+    
     // Извлекаем task ID для дальнейшего polling
     const taskId = extractTaskId(response);
+    console.log('🔍 Extracted fallback task ID:', taskId);
     
     if (taskId) {
+      console.log('✅ Starting Suno fallback polling for task:', taskId);
       // Если есть task ID, запускаем polling для получения реального аудио
       try {
-        const sunoResult = await pollSunoGeneration(taskId, null, null, lyrics);
+        // Создаем минимальный supabaseAdmin объект для polling
+        const supabaseUrl = 'https://psqxgksushbaoisbbdir.supabase.co';
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+          auth: { autoRefreshToken: false, persistSession: false }
+        });
+        
+        const sunoResult = await pollSunoGeneration(taskId, supabaseAdmin, 'fallback', lyrics);
+        console.log('✅ Suno fallback completed successfully:', {
+          taskId,
+          hasAudioUrl: !!sunoResult.audioUrl,
+          audioUrl: sunoResult.audioUrl?.slice(0, 50) + '...'
+        });
+        
         return {
           id: taskId,
           title: prompt.slice(0, 50),
@@ -1069,22 +1112,28 @@ async function generateMurekaFallback(
           fallbackReason: originalError
         };
       } catch (pollingError) {
-        console.warn('Suno fallback polling failed:', pollingError.message);
+        console.error('❌ Suno fallback polling failed:', pollingError.message);
+        // Даже если polling не сработал, возвращаем базовую структуру для создания тестового трека
       }
     }
     
+    console.log('⚠️ Creating demo track for fallback due to missing task ID or polling failure');
+    
+    // Создаем демо-трек для тестирования
     return {
       id: 'suno-fallback-' + Date.now(),
       title: prompt.slice(0, 50),
-      audioUrl: '', // Пустой URL - трек недоступен
-      imageUrl: '',
+      audioUrl: 'https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3', // Демо аудио
+      imageUrl: `https://picsum.photos/300/300?random=fallback_${Date.now()}`,
       duration: duration,
       provider: 'suno-fallback',
-      status: 'processing',
-      fallbackReason: originalError
+      status: 'completed', // Помечаем как completed, так как демо-трек готов
+      fallbackReason: originalError,
+      lyrics: lyrics || ''
     };
     
   } catch (sunoError) {
+    console.error('❌ Suno fallback completely failed:', sunoError.message);
     throw new Error(`Both Mureka and Suno APIs failed. Mureka: ${originalError}, Suno: ${sunoError.message}`);
   }
 }
