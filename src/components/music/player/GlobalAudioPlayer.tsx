@@ -333,14 +333,32 @@ export default function GlobalAudioPlayer() {
     currentTrack: playerState.currentTrack,
     isPlaying: playerState.isPlaying,
     playlist: playerState.playlist,
+    duration: playerState.duration,
+    currentTime: playerState.currentTime,
+    isLoading: playerState.isLoading,
     playerState
   });
   
-  // Don't render if no current track
-  if (!playerState.currentTrack) {
-    console.log('❌ GlobalAudioPlayer not rendering - no currentTrack');
+  // Show player if we have a track OR if audio is playing/loading
+  // This ensures the player is visible even if currentTrack is temporarily null
+  const shouldShowPlayer = playerState.currentTrack || 
+                          playerState.isPlaying || 
+                          playerState.isLoading ||
+                          playerState.duration > 0 ||
+                          playerState.currentTime > 0;
+  
+  if (!shouldShowPlayer) {
+    console.log('❌ GlobalAudioPlayer not rendering - no valid state');
     return null;
   }
+
+  // Use a fallback track info if currentTrack is null but we're playing
+  const displayTrack = playerState.currentTrack || {
+    id: 'unknown',
+    title: 'Загрузка...',
+    file_url: '',
+    provider: 'unknown'
+  };
 
   // Determine control availability
   const canGoPrevious = playerState.currentIndex > 0 || playerState.repeatMode === 'all';
@@ -377,7 +395,7 @@ export default function GlobalAudioPlayer() {
           <div className="block lg:hidden space-y-3">
             {/* Track info and main controls */}
             <div className="flex items-center justify-between">
-              <TrackInfo track={playerState.currentTrack} className="flex-1 min-w-0" />
+              <TrackInfo track={displayTrack} className="flex-1 min-w-0" />
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
@@ -427,7 +445,7 @@ export default function GlobalAudioPlayer() {
           {/* Desktop layout */}
           <div className="hidden lg:flex items-center gap-6">
             {/* Track info */}
-            <TrackInfo track={playerState.currentTrack} className="w-80 flex-shrink-0" />
+            <TrackInfo track={displayTrack} className="w-80 flex-shrink-0" />
             
             {/* Center controls */}
             <div className="flex-1 space-y-2">
