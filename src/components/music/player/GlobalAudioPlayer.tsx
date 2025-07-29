@@ -348,8 +348,12 @@ export default function GlobalAudioPlayer() {
     provider: 'system'
   };
 
-  // Determine control availability - disable if no real track is loaded
-  const hasRealTrack = playerState.currentTrack !== null;
+  // Enhanced logic for determining if player has active audio
+  const hasRealTrack = playerState.currentTrack !== null || 
+                       playerState.isPlaying || 
+                       playerState.currentTime > 0 ||
+                       playerState.duration > 0;
+  
   const canGoPrevious = hasRealTrack && (playerState.currentIndex > 0 || playerState.repeatMode === 'all');
   const canGoNext = hasRealTrack && (playerState.currentIndex < playerState.playlist.length - 1 || 
                     playerState.repeatMode === 'all' || 

@@ -116,6 +116,27 @@ export function useAudioPlayer(): [AudioPlayerState, AudioPlayerActions] {
     shuffleEnabled: false
   });
 
+  // Debug logging for audio state
+  const logAudioState = useCallback(() => {
+    if (audioRef.current) {
+      console.log('🎵 Audio element state:', {
+        src: audioRef.current.src,
+        currentTime: audioRef.current.currentTime,
+        duration: audioRef.current.duration,
+        paused: audioRef.current.paused,
+        readyState: audioRef.current.readyState,
+        networkState: audioRef.current.networkState
+      });
+      console.log('🎵 Hook state:', {
+        currentTrack: state.currentTrack?.title || null,
+        isPlaying: state.isPlaying,
+        isLoading: state.isLoading,
+        currentTime: state.currentTime,
+        duration: state.duration
+      });
+    }
+  }, [state]);
+
   /**
    * Initialize audio element with event listeners
    * Sets up all necessary HTML5 audio events for state management
@@ -134,6 +155,7 @@ export function useAudioPlayer(): [AudioPlayerState, AudioPlayerActions] {
     };
 
     const handleLoadedMetadata = () => {
+      console.log('🎵 Audio loaded metadata:', { duration: audio.duration });
       setState(prev => ({ 
         ...prev, 
         duration: audio.duration || 0,
@@ -146,10 +168,12 @@ export function useAudioPlayer(): [AudioPlayerState, AudioPlayerActions] {
     };
 
     const handlePlay = () => {
+      console.log('🎵 Audio started playing');
       setState(prev => ({ ...prev, isPlaying: true }));
     };
 
     const handlePause = () => {
+      console.log('🎵 Audio paused');
       setState(prev => ({ ...prev, isPlaying: false }));
     };
 
@@ -226,7 +250,7 @@ export function useAudioPlayer(): [AudioPlayerState, AudioPlayerActions] {
       audio.src = track.file_url;
       audio.volume = state.isMuted ? 0 : state.volume;
 
-      // Update state with new track info
+      // Update state with new track info immediately for UI responsiveness
       const newPlaylist = playlist || state.playlist;
       const trackIndex = newPlaylist.findIndex(t => t.id === track.id);
       
@@ -238,6 +262,8 @@ export function useAudioPlayer(): [AudioPlayerState, AudioPlayerActions] {
         error: null,
         isLoading: true
       }));
+
+      console.log('🎵 Loading track:', { title: track.title, url: track.file_url });
 
       // Start playback
       await audio.play();
